@@ -3,21 +3,14 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { Page } from "@/components/site/Layout";
 import { ToolCard } from "@/components/site/ToolCard";
+import { pageHead } from "@/lib/seo";
 import { categories, shortName, tools } from "@/lib/tools";
 
 export const Route = createFileRoute("/tools")({
   validateSearch: (s: Record<string, unknown>): { q?: string } =>
     typeof s["q"] === "string" ? { q: s["q"] as string } : {},
-  head: () => ({
-    meta: [
-      { title: "All AI Tools — Search & Filter | TryAITools" },
-      { name: "description", content: "Search and filter more than 2,000 AI tools across 15 categories." },
-      { property: "og:title", content: "All AI Tools | TryAITools" },
-      { property: "og:description", content: "Search and filter more than 2,000 AI tools." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: () =>
+    pageHead({ title: "All AI Tools — Search & Filter | TryAITools", description: "Search and filter more than 2,000 AI tools across 15 categories.", path: "/tools" }),
   component: ToolsPage,
 });
 

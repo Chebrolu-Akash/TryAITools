@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Page } from "@/components/site/Layout";
 import { ToolCard } from "@/components/site/ToolCard";
+import { pageHead } from "@/lib/seo";
 import { categoryBySlug, toolsIn } from "@/lib/tools";
 
 export const Route = createFileRoute("/categories/$slug")({
@@ -12,18 +13,9 @@ export const Route = createFileRoute("/categories/$slug")({
     if (!category) throw notFound();
     return { category };
   },
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     const n = loaderData?.category.name ?? "Category";
-    return {
-      meta: [
-        { title: `Best ${n} | TryAITools` },
-        { name: "description", content: `Discover the best ${n} — compare and visit top picks.` },
-        { property: "og:title", content: `Best ${n} | TryAITools` },
-        { property: "og:description", content: `Discover the best ${n}.` },
-        { property: "og:type", content: "website" },
-        { name: "twitter:card", content: "summary_large_image" },
-      ],
-    };
+    return pageHead({ title: `Best ${n} | TryAITools`, description: `Discover the best ${n} — compare and visit top picks.`, path: `/categories/${params.slug}` });
   },
   notFoundComponent: () => (
     <Page>

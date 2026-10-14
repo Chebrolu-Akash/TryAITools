@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as ToolsRouteImport } from './routes/tools'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as AffiliateDisclosureRouteImport } from './routes/affiliate-disclosure'
 import { Route as CategoriesIndexRouteImport } from './routes/categories.index'
 import { Route as CategoriesSlugRouteImport } from './routes/categories.$slug'
 
@@ -30,6 +33,21 @@ const ToolsRoute = ToolsRouteImport.update({
   path: '/tools',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AffiliateDisclosureRoute = AffiliateDisclosureRouteImport.update({
+  id: '/affiliate-disclosure',
+  path: '/affiliate-disclosure',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CategoriesIndexRoute = CategoriesIndexRouteImport.update({
   id: '/categories/',
   path: '/categories/',
@@ -45,6 +63,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/tools': typeof ToolsRoute
+  '/affiliate-disclosure': typeof AffiliateDisclosureRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/categories/$slug': typeof CategoriesSlugRoute
   '/categories/': typeof CategoriesIndexRoute
 }
@@ -52,6 +73,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/tools': typeof ToolsRoute
+  '/affiliate-disclosure': typeof AffiliateDisclosureRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/categories/$slug': typeof CategoriesSlugRoute
   '/categories': typeof CategoriesIndexRoute
 }
@@ -60,19 +84,25 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/tools': typeof ToolsRoute
+  '/affiliate-disclosure': typeof AffiliateDisclosureRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/categories/$slug': typeof CategoriesSlugRoute
   '/categories/': typeof CategoriesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/tools' | '/categories/$slug' | '/categories/'
+  fullPaths: '/' | '/about' | '/tools' | '/affiliate-disclosure' | '/privacy' | '/terms' | '/categories/$slug' | '/categories/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/tools' | '/categories/$slug' | '/categories'
+  to: '/' | '/about' | '/tools' | '/affiliate-disclosure' | '/privacy' | '/terms' | '/categories/$slug' | '/categories'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/tools'
+    | '/affiliate-disclosure'
+    | '/privacy'
+    | '/terms'
     | '/categories/$slug'
     | '/categories/'
   fileRoutesById: FileRoutesById
@@ -81,6 +111,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   ToolsRoute: typeof ToolsRoute
+  AffiliateDisclosureRoute: typeof AffiliateDisclosureRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
   CategoriesSlugRoute: typeof CategoriesSlugRoute
   CategoriesIndexRoute: typeof CategoriesIndexRoute
 }
@@ -108,6 +141,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/affiliate-disclosure': {
+      id: '/affiliate-disclosure'
+      path: '/affiliate-disclosure'
+      fullPath: '/affiliate-disclosure'
+      preLoaderRoute: typeof AffiliateDisclosureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/categories/': {
       id: '/categories/'
       path: '/categories'
@@ -129,6 +183,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   ToolsRoute: ToolsRoute,
+  AffiliateDisclosureRoute: AffiliateDisclosureRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
   CategoriesSlugRoute: CategoriesSlugRoute,
   CategoriesIndexRoute: CategoriesIndexRoute,
 }

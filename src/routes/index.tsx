@@ -2,17 +2,25 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Page } from "@/components/site/Layout";
 import { CategoryBrowser } from "@/components/site/CategoryBrowser";
 import { Hero } from "@/components/site/Hero";
+import { pageHead } from "@/lib/seo";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "WebSite", name: SITE_NAME, url: SITE_URL, potentialAction: { "@type": "SearchAction", target: `${SITE_URL}/tools?q={search_term_string}`, "query-input": "required name=search_term_string" } },
+    { "@type": "Organization", name: SITE_NAME, url: SITE_URL, logo: `${SITE_URL}/logo-512.png` },
+  ],
+};
 
 export const Route = createFileRoute("/")({
   head: () => ({
-    meta: [
-      { title: "TryAITools — Discover 2,000+ AI Tools by Category" },
-      { name: "description", content: "Browse over 2,000 hand-picked AI tools for writing, images, video, coding, marketing and more." },
-      { property: "og:title", content: "TryAITools — Discover 2,000+ AI Tools" },
-      { property: "og:description", content: "Find the right AI tool for every task, organized into 15 categories." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
+    ...pageHead({
+      title: "TryAITools — Discover 2,000+ AI Tools by Category",
+      description: SITE_DESCRIPTION,
+      path: "/",
+    }),
+    scripts: [{ type: "application/ld+json", children: JSON.stringify(websiteJsonLd) }],
   }),
   component: () => (
     <Page>

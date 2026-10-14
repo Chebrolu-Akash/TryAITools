@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
-import { Menu, Sparkles, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { categories, shortName } from "@/lib/tools";
 
 const nav = [
@@ -12,10 +12,8 @@ const nav = [
 
 export function Logo() {
   return (
-    <Link to="/" className="flex items-center gap-2">
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-soft">
-        <Sparkles className="h-5 w-5" />
-      </span>
+    <Link to="/" aria-label="TryAITools home" className="flex items-center gap-2">
+      <img src="/logo.png" alt="" width={36} height={36} className="h-9 w-9 rounded-xl shadow-soft" />
       <span className="font-display text-xl font-bold tracking-tight">
         Try<span className="text-primary">AI</span>Tools
       </span>
@@ -48,7 +46,7 @@ export function Header() {
         >
           Explore Tools
         </Link>
-        <button className="md:hidden" onClick={() => setOpen(!open)} aria-label="Menu">
+        <button className="md:hidden" onClick={() => setOpen(!open)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open}>
           {open ? <X /> : <Menu />}
         </button>
       </div>
@@ -65,28 +63,70 @@ export function Header() {
   );
 }
 
+const explore = [
+  { to: "/", label: "Home" },
+  { to: "/tools", label: "All AI Tools" },
+  { to: "/categories", label: "Categories" },
+] as const;
+
+const company = [
+  { to: "/about", label: "About" },
+  { to: "/privacy", label: "Privacy Policy" },
+  { to: "/terms", label: "Terms of Use" },
+  { to: "/affiliate-disclosure", label: "Affiliate Disclosure" },
+] as const;
+
 export function Footer() {
   return (
     <footer className="mt-24 border-t border-border bg-secondary">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-4">
-        <div className="space-y-3">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-12">
+        <div className="space-y-3 md:col-span-4">
           <Logo />
-          <p className="text-sm text-muted-foreground">Discover the best AI tools for every task, organized by category.</p>
+          <p className="max-w-xs text-sm text-muted-foreground">
+            Discover the best AI tools for every task, organized by category. Free to browse, always.
+          </p>
         </div>
-        <div className="md:col-span-3">
-          <h4 className="mb-4 text-sm font-semibold">Categories</h4>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {categories.map((c) => (
-              <Link key={c.slug} to="/categories/$slug" params={{ slug: c.slug }} className="text-sm text-muted-foreground hover:text-primary">
-                {shortName(c.name)}
-              </Link>
+        <nav aria-label="Explore" className="md:col-span-2">
+          <h4 className="mb-4 text-sm font-semibold">Explore</h4>
+          <ul className="space-y-2">
+            {explore.map((l) => (
+              <li key={l.to}>
+                <Link to={l.to} className="text-sm text-muted-foreground hover:text-primary">{l.label}</Link>
+              </li>
             ))}
-          </div>
+          </ul>
+        </nav>
+        <nav aria-label="Company" className="md:col-span-2">
+          <h4 className="mb-4 text-sm font-semibold">Company</h4>
+          <ul className="space-y-2">
+            {company.map((l) => (
+              <li key={l.to}>
+                <Link to={l.to} className="text-sm text-muted-foreground hover:text-primary">{l.label}</Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <nav aria-label="Categories" className="md:col-span-4">
+          <h4 className="mb-4 text-sm font-semibold">Categories</h4>
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {categories.map((c) => (
+              <li key={c.slug}>
+                <Link to="/categories/$slug" params={{ slug: c.slug }} className="text-sm text-muted-foreground hover:text-primary">
+                  {shortName(c.name)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </div>
+      <div className="border-t border-border">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:px-6">
+          <p>© {new Date().getFullYear()} TryAITools. All rights reserved.</p>
+          <p className="text-center sm:text-right">
+            Some links are affiliate links. Product names and logos belong to their respective owners.
+          </p>
         </div>
       </div>
-      <p className="border-t border-border py-5 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} TryAITools. Some links may be affiliate links.
-      </p>
     </footer>
   );
 }

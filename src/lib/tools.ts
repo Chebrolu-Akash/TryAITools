@@ -17,8 +17,8 @@ export const domainOf = (url: string) => {
     return "";
   }
 };
-export const logoOf = (url: string) => {
+export const logoOf = (url: string, size = 64) => {
   const d = domainOf(url);
-  return d ? `https://www.google.com/s2/favicons?domain=${d}&sz=64` : "";
+  return d ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(d)}&sz=${size}` : "";
 };
 export const shortName = (c: string) => c.replace(/^AI /, "").replace(/ Tools$/, "");

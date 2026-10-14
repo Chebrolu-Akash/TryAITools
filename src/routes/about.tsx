@@ -1,18 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Page } from "@/components/site/Layout";
+import { pageHead } from "@/lib/seo";
 import { categories, tools } from "@/lib/tools";
 
 export const Route = createFileRoute("/about")({
-  head: () => ({
-    meta: [
-      { title: "About TryAITools" },
-      { name: "description", content: "TryAITools helps you discover the right AI tool for every task." },
-      { property: "og:title", content: "About TryAITools" },
-      { property: "og:description", content: "Our mission: make AI tools easy to discover." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: () =>
+    pageHead({ title: "About TryAITools", description: "TryAITools helps you discover the right AI tool for every task. Learn about our mission and how the directory is organized.", path: "/about" }),
   component: () => (
     <Page>
       <section className="bg-hero pb-16 pt-16">

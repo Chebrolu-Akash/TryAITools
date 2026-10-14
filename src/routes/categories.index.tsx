@@ -1,17 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Page } from "@/components/site/Layout";
 import { CategoryBrowser } from "@/components/site/CategoryBrowser";
+import { pageHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/categories/")({
-  head: () => ({
-    meta: [
-      { title: "AI Tool Categories | TryAITools" },
-      { name: "description", content: "Explore 15 AI tool categories and their subcategories." },
-      { property: "og:title", content: "AI Tool Categories | TryAITools" },
-      { property: "og:description", content: "Explore 15 AI tool categories and their subcategories." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: () =>
+    pageHead({ title: "AI Tool Categories | TryAITools", description: "Explore 15 AI tool categories and their subcategories.", path: "/categories" }),
   component: () => <Page><CategoryBrowser /></Page>,
 });
