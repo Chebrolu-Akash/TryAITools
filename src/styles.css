@@ -100,3 +100,14 @@ html {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
+
+@utility bg-hero-flow {
+  background: linear-gradient(180deg, #ffffff 0%, #f1efff 28%, #c9c6ff 62%, #8a86ff 100%);
+}
+@utility bg-blob {
+  background: linear-gradient(180deg, #dad7ff 0%, #918dff 55%, #7973fb 100%);
+}
+@utility bg-dots {
+  background-image: radial-gradient(color-mix(in oklab, var(--primary) 12%, transparent) 1.2px, transparent 1.3px);
+  background-size: 26px 26px;
+}

@@ -24,41 +24,46 @@ export function Logo() {
 export function Header() {
   const [open, setOpen] = useState(false);
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <Logo />
-        <nav className="hidden items-center gap-8 md:flex">
-          {nav.map((n) => (
-            <Link
-              key={n.to}
-              to={n.to}
-              activeOptions={{ exact: n.to === "/" }}
-              className="text-sm font-medium text-foreground/80 transition-colors hover:text-primary"
-              activeProps={{ className: "text-primary" }}
-            >
-              {n.label}
+    <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6 sm:pt-4">
+      <div className="mx-auto max-w-6xl rounded-3xl border border-primary/15 bg-background/75 shadow-[0_12px_40px_-14px_color-mix(in_oklab,var(--primary)_40%,transparent)] backdrop-blur-xl md:rounded-full">
+        <div className="flex h-14 items-center justify-between gap-3 pl-4 pr-2 sm:h-16 sm:pl-5">
+          <Logo />
+          <nav className="hidden items-center gap-1 md:flex">
+            {nav.map((n) => (
+              <Link
+                key={n.to}
+                to={n.to}
+                activeOptions={{ exact: n.to === "/" }}
+                className="rounded-full px-4 py-2 text-sm font-semibold text-foreground/75 transition-colors hover:bg-accent hover:text-primary"
+                activeProps={{ className: "bg-accent text-primary" }}
+              >
+                {n.label}
+              </Link>
+            ))}
+          </nav>
+          <Link
+            to="/tools"
+            className="hidden rounded-full bg-gradient-primary px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-soft transition hover:opacity-90 md:inline-flex"
+          >
+            Explore Tools
+          </Link>
+          <button className="mr-2 md:hidden" onClick={() => setOpen(!open)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open}>
+            {open ? <X /> : <Menu />}
+          </button>
+        </div>
+        {open && (
+          <nav className="flex flex-col gap-1 border-t border-primary/10 p-3 md:hidden">
+            {nav.map((n) => (
+              <Link key={n.to} to={n.to} onClick={() => setOpen(false)} className="rounded-xl px-3 py-2.5 font-semibold hover:bg-accent" activeProps={{ className: "bg-accent text-primary" }} activeOptions={{ exact: n.to === "/" }}>
+                {n.label}
+              </Link>
+            ))}
+            <Link to="/tools" onClick={() => setOpen(false)} className="mt-1 rounded-xl bg-gradient-primary px-3 py-2.5 text-center font-bold text-primary-foreground">
+              Explore Tools
             </Link>
-          ))}
-        </nav>
-        <Link
-          to="/tools"
-          className="hidden rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft transition hover:opacity-90 md:inline-flex"
-        >
-          Explore Tools
-        </Link>
-        <button className="md:hidden" onClick={() => setOpen(!open)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open}>
-          {open ? <X /> : <Menu />}
-        </button>
+          </nav>
+        )}
       </div>
-      {open && (
-        <nav className="flex flex-col gap-1 border-t border-border px-4 py-3 md:hidden">
-          {nav.map((n) => (
-            <Link key={n.to} to={n.to} onClick={() => setOpen(false)} className="rounded-lg px-3 py-2 font-medium hover:bg-accent">
-              {n.label}
-            </Link>
-          ))}
-        </nav>
-      )}
     </header>
   );
 }

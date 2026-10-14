@@ -17,10 +17,11 @@ export function Hero() {
   };
 
   return (
-    <section className="relative flex min-h-[calc(100svh-4rem)] flex-col justify-center overflow-hidden border-b border-primary/10 bg-lavender/45">
-      <div aria-hidden className="pointer-events-none absolute -top-28 -left-24 h-72 w-72 rounded-full bg-gradient-primary opacity-25 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute -top-16 -right-20 h-80 w-80 rounded-full bg-gradient-primary opacity-20 blur-3xl" />
-      <div className="relative mx-auto max-w-4xl px-4 pb-0 pt-12 text-center sm:px-6 sm:pt-16">
+    <section className="relative mx-3 flex min-h-[calc(100svh-5.5rem)] flex-col justify-center overflow-hidden rounded-b-[2.5rem] bg-hero-flow sm:mx-6 sm:rounded-b-[3.5rem]">
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-dots [mask-image:linear-gradient(180deg,#000,transparent_60%)]" />
+      <div aria-hidden className="pointer-events-none absolute -left-24 top-[22%] hidden h-[62%] w-72 rotate-[-4deg] bg-blob opacity-95 sm:block lg:-left-32 lg:w-96" style={{ borderRadius: "0 200px 260px 0 / 0 180px 300px 0" }} />
+      <div aria-hidden className="pointer-events-none absolute -right-24 top-[22%] hidden h-[62%] w-72 rotate-[4deg] bg-blob opacity-95 sm:block lg:-right-32 lg:w-96" style={{ borderRadius: "200px 0 0 260px / 180px 0 0 300px" }} />
+      <div className="relative mx-auto max-w-4xl px-4 pb-0 pt-10 text-center sm:px-6 sm:pt-12">
         <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/70 px-4 py-1.5 text-xs font-semibold text-primary">
           {tools.length.toLocaleString()} tools · {categories.length} categories · updated weekly
         </p>
