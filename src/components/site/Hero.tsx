@@ -17,10 +17,10 @@ export function Hero() {
   };
 
   return (
-    <section className="relative overflow-hidden border-b border-primary/10 bg-lavender/45">
+    <section className="relative flex min-h-[calc(100svh-4rem)] flex-col justify-center overflow-hidden border-b border-primary/10 bg-lavender/45">
       <div aria-hidden className="pointer-events-none absolute -top-28 -left-24 h-72 w-72 rounded-full bg-gradient-primary opacity-25 blur-3xl" />
       <div aria-hidden className="pointer-events-none absolute -top-16 -right-20 h-80 w-80 rounded-full bg-gradient-primary opacity-20 blur-3xl" />
-      <div className="relative mx-auto max-w-4xl px-4 pb-0 pt-14 text-center sm:px-6 sm:pt-20">
+      <div className="relative mx-auto max-w-4xl px-4 pb-0 pt-12 text-center sm:px-6 sm:pt-16">
         <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/70 px-4 py-1.5 text-xs font-semibold text-primary">
           {tools.length.toLocaleString()} tools · {categories.length} categories · updated weekly
         </p>
@@ -55,7 +55,7 @@ export function Hero() {
           ))}
         </p>
       </div>
-      <div className="relative pb-14 sm:pb-16">
+      <div className="relative pb-12 sm:pb-14">
         <ToolLogoLoops />
       </div>
     </section>

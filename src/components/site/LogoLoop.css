@@ -7,7 +7,10 @@
 }
 .logoloop--vertical { height: 100%; display: inline-block; }
 .logoloop--scale-hover { padding-top: calc(var(--logoloop-logoHeight) * 0.1); padding-bottom: calc(var(--logoloop-logoHeight) * 0.1); }
-.logoloop__track { display: flex; width: max-content; will-change: transform; user-select: none; position: relative; z-index: 0; }
+.logoloop__track { display: flex; width: max-content; will-change: transform; user-select: none; -webkit-user-select: none; position: relative; z-index: 0; cursor: grab; touch-action: pan-y; }
+.logoloop--vertical .logoloop__track { touch-action: pan-x; }
+.logoloop--dragging .logoloop__track { cursor: grabbing; }
+.logoloop--dragging a { pointer-events: none; }
 .logoloop--vertical .logoloop__track { flex-direction: column; height: max-content; width: 100%; }
 .logoloop__list { display: flex; align-items: center; margin: 0; padding: 0; list-style: none; }
 .logoloop--vertical .logoloop__list { flex-direction: column; }

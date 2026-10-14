@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from "react";
 import "./LogoLoop.css";
 
 export type LogoItem =
@@ -84,11 +84,12 @@ const useAnimationLoop = (
   isHovered: boolean,
   hoverSpeed: number | undefined,
   isVertical: boolean,
+  draggingRef: RefObject<boolean>,
+  offsetRef: RefObject<number>,
+  velocityRef: RefObject<number>,
 ) => {
   const rafRef = useRef<number | null>(null);
   const lastTimestampRef = useRef<number | null>(null);
-  const offsetRef = useRef(0);
-  const velocityRef = useRef(0);
 
   useEffect(() => {
     const track = trackRef.current;
@@ -105,6 +106,15 @@ const useAnimationLoop = (
       if (lastTimestampRef.current === null) lastTimestampRef.current = timestamp;
       const deltaTime = Math.max(0, timestamp - lastTimestampRef.current) / 1000;
       lastTimestampRef.current = timestamp;
+      if (draggingRef.current) {
+        // The pointer handlers move the offset directly while dragging.
+        if (seqSize > 0) {
+          offsetRef.current = ((offsetRef.current % seqSize) + seqSize) % seqSize;
+          apply();
+        }
+        rafRef.current = requestAnimationFrame(animate);
+        return;
+      }
       const target = isHovered && hoverSpeed !== undefined ? hoverSpeed : targetVelocity;
       const easingFactor = 1 - Math.exp(-deltaTime / ANIMATION_CONFIG.SMOOTH_TAU);
       velocityRef.current += (target - velocityRef.current) * easingFactor;
@@ -122,7 +132,7 @@ const useAnimationLoop = (
       rafRef.current = null;
       lastTimestampRef.current = null;
     };
-  }, [targetVelocity, seqWidth, seqHeight, isHovered, hoverSpeed, isVertical, trackRef]);
+  }, [targetVelocity, seqWidth, seqHeight, isHovered, hoverSpeed, isVertical, trackRef, draggingRef, offsetRef, velocityRef]);
 };
 
 export const LogoLoop = memo(function LogoLoop({
@@ -190,7 +200,63 @@ export const LogoLoop = memo(function LogoLoop({
 
   useResizeObserver(updateDimensions, [containerRef, seqRef], [logos, gap, logoHeight, isVertical]);
   useImageLoader(seqRef, updateDimensions, [logos, gap, logoHeight, isVertical]);
-  useAnimationLoop(trackRef, targetVelocity, seqWidth, seqHeight, isHovered, effectiveHoverSpeed, isVertical);
+  const offsetRef = useRef(0);
+  const velocityRef = useRef(0);
+  const draggingRef = useRef(false);
+  const dragRef = useRef({ active: false, id: -1, last: 0, lastTime: 0, moved: 0, speed: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+
+  useAnimationLoop(trackRef, targetVelocity, seqWidth, seqHeight, isHovered, effectiveHoverSpeed, isVertical, draggingRef, offsetRef, velocityRef);
+
+  const DRAG_THRESHOLD = 5;
+  const handlePointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    dragRef.current = { active: true, id: e.pointerId, last: isVertical ? e.clientY : e.clientX, lastTime: performance.now(), moved: 0, speed: 0 };
+  }, [isVertical]);
+
+  const handlePointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d.active || e.pointerId !== d.id) return;
+    const pos = isVertical ? e.clientY : e.clientX;
+    const delta = pos - d.last;
+    d.moved += Math.abs(delta);
+    if (!draggingRef.current) {
+      if (d.moved < DRAG_THRESHOLD) return;
+      draggingRef.current = true;
+      setIsDragging(true);
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    }
+    const now = performance.now();
+    const dt = Math.max(1, now - d.lastTime) / 1000;
+    // Dragging left (negative delta) moves content left, i.e. increases the offset.
+    offsetRef.current -= delta;
+    d.speed = d.speed * 0.6 + (-delta / dt) * 0.4;
+    d.last = pos;
+    d.lastTime = now;
+  }, [isVertical]);
+
+  const endDrag = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d.active || e.pointerId !== d.id) return;
+    d.active = false;
+    if (draggingRef.current) {
+      // Fling: carry the release velocity, then ease back to the normal speed.
+      const stale = performance.now() - d.lastTime > 80;
+      velocityRef.current = stale ? 0 : Math.max(-2500, Math.min(2500, d.speed));
+      draggingRef.current = false;
+      setIsDragging(false);
+      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    }
+  }, []);
+
+  // A drag must not count as a click on a logo link underneath the pointer.
+  const handleClickCapture = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
+    if (dragRef.current.moved >= DRAG_THRESHOLD) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    dragRef.current.moved = 0;
+  }, []);
 
   const cssVariables = useMemo(
     () =>
@@ -204,10 +270,10 @@ export const LogoLoop = memo(function LogoLoop({
 
   const rootClassName = useMemo(
     () =>
-      ["logoloop", isVertical ? "logoloop--vertical" : "logoloop--horizontal", fadeOut && "logoloop--fade", scaleOnHover && "logoloop--scale-hover", className]
+      ["logoloop", isVertical ? "logoloop--vertical" : "logoloop--horizontal", fadeOut && "logoloop--fade", scaleOnHover && "logoloop--scale-hover", isDragging && "logoloop--dragging", className]
         .filter(Boolean)
         .join(" "),
-    [isVertical, fadeOut, scaleOnHover, className],
+    [isVertical, fadeOut, scaleOnHover, isDragging, className],
   );
 
   const handleMouseEnter = useCallback(() => {
@@ -284,7 +350,17 @@ export const LogoLoop = memo(function LogoLoop({
 
   return (
     <div ref={containerRef} className={rootClassName} style={containerStyle} role="region" aria-label={ariaLabel}>
-      <div className="logoloop__track" ref={trackRef} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      <div
+        className="logoloop__track"
+        ref={trackRef}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClickCapture={handleClickCapture}
+      >
         {logoLists}
       </div>
     </div>

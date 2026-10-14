@@ -9,6 +9,7 @@ function Chip({ tool }: { tool: FeaturedTool }) {
     <Link
       to="/tools"
       search={{ q: tool.label }}
+      draggable={false}
       title={`Find ${tool.label} and similar tools`}
       className="group inline-flex items-center gap-2.5 rounded-md text-base font-semibold text-foreground/55 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
