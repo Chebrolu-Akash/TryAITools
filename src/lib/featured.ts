@@ -31,3 +31,11 @@ const build = (names: string[]): FeaturedTool[] =>
 
 export const featuredRowOne = build(ROW_ONE);
 export const featuredRowTwo = build(ROW_TWO);
+
+// One interleaved list for the single-row hero loop.
+export const featuredAll: FeaturedTool[] = Array.from(
+  { length: Math.max(featuredRowOne.length, featuredRowTwo.length) },
+  (_, i) => [featuredRowOne[i], featuredRowTwo[i]],
+)
+  .flat()
+  .filter((t): t is FeaturedTool => Boolean(t));
