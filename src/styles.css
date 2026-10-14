@@ -102,7 +102,7 @@ html {
 }
 
 @utility bg-hero-flow {
-  background: linear-gradient(180deg, #ffffff 0%, #f1efff 28%, #c9c6ff 62%, #8a86ff 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f5f3ff 25%, #d9d5ff 62%, #8f8bff 100%);
 }
 @utility bg-blob {
   background: linear-gradient(180deg, #dad7ff 0%, #918dff 55%, #7973fb 100%);
@@ -110,4 +110,27 @@ html {
 @utility bg-dots {
   background-image: radial-gradient(color-mix(in oklab, var(--primary) 12%, transparent) 1.2px, transparent 1.3px);
   background-size: 26px 26px;
+}
+
+@utility bg-hero-glows {
+  background:
+    radial-gradient(520px 360px at 12% 30%, rgb(168 139 255 / 0.35), transparent 70%),
+    radial-gradient(560px 380px at 90% 24%, rgb(99 179 255 / 0.3), transparent 70%),
+    radial-gradient(520px 340px at 78% 78%, rgb(255 150 230 / 0.28), transparent 70%),
+    radial-gradient(600px 380px at 20% 85%, rgb(120 110 255 / 0.45), transparent 70%);
+}
+@utility bg-grid-lines {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--primary) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--primary) 7%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+@keyframes float-tile {
+  0%, 100% { transform: translateY(0) rotate(var(--tile-rot, 0deg)); }
+  50% { transform: translateY(-12px) rotate(var(--tile-rot, 0deg)); }
+}
+.float-tile { animation: float-tile 6s ease-in-out infinite; transform: rotate(var(--tile-rot, 0deg)); }
+@media (prefers-reduced-motion: reduce) {
+  .float-tile { animation: none; }
 }
