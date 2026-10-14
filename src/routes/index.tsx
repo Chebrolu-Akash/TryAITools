@@ -23,7 +23,7 @@ export const Route = createFileRoute("/")({
     scripts: [{ type: "application/ld+json", children: JSON.stringify(websiteJsonLd) }],
   }),
   component: () => (
-    <Page>
+    <Page flush>
       <Hero />
       <CategoryBrowser heading="h2" />
     </Page>

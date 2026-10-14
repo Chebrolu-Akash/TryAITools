@@ -18,9 +18,9 @@ export function Hero() {
   };
 
   return (
-    <section className="relative mx-3 flex min-h-[calc(100svh-5.5rem)] flex-col justify-center overflow-hidden rounded-b-[2.5rem] bg-hero-flow sm:mx-6 sm:rounded-b-[3.5rem]">
+    <section className="relative flex min-h-svh flex-col justify-center overflow-hidden rounded-b-[2.5rem] bg-hero-flow sm:rounded-b-[3.5rem]">
       <HeroBackground />
-      <div className="relative mx-auto max-w-4xl px-4 pb-0 pt-10 text-center sm:px-6 sm:pt-12">
+      <div className="relative mx-auto max-w-4xl px-4 pb-0 pt-28 text-center sm:px-6 sm:pt-28">
         <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/70 px-4 py-1.5 text-xs font-semibold text-primary">
           {tools.length.toLocaleString()} tools · {categories.length} categories · updated weekly
         </p>

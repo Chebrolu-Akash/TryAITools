@@ -1,11 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Menu, X } from "lucide-react";
 import { categories, shortName } from "@/lib/tools";
 
 const nav = [
   { to: "/", label: "Home" },
-  { to: "/tools", label: "AI Tools" },
   { to: "/categories", label: "Categories" },
   { to: "/about", label: "About" },
 ] as const;
@@ -23,9 +22,26 @@ export function Logo() {
 
 export function Header() {
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Static and flush with the page at the top; becomes a floating glass bar once scrolled.
+  const floating = scrolled || open;
   return (
-    <header className="sticky top-0 z-40 px-3 pt-3 sm:px-6 sm:pt-4">
-      <div className="mx-auto max-w-6xl rounded-3xl border border-primary/15 bg-background/75 shadow-[0_12px_40px_-14px_color-mix(in_oklab,var(--primary)_40%,transparent)] backdrop-blur-xl md:rounded-full">
+    <header className="sticky top-0 z-40 -mb-[5.5rem] h-[5.5rem] px-3 pt-3 sm:px-6 sm:pt-4">
+      <div
+        className={`mx-auto max-w-6xl rounded-3xl border transition-all duration-300 md:rounded-full ${
+          floating
+            ? "border-primary/15 bg-background/80 shadow-[0_12px_40px_-14px_color-mix(in_oklab,var(--primary)_40%,transparent)] backdrop-blur-xl"
+            : "border-transparent bg-transparent shadow-none"
+        }`}
+      >
         <div className="flex h-14 items-center justify-between gap-3 pl-4 pr-2 sm:h-16 sm:pl-5">
           <Logo />
           <nav className="hidden items-center gap-1 md:flex">
@@ -136,11 +152,12 @@ export function Footer() {
   );
 }
 
-export function Page({ children }: { children: ReactNode }) {
+/** `flush` lets the first section (e.g. the home hero) extend behind the header instead of starting below it. */
+export function Page({ children, flush = false }: { children: ReactNode; flush?: boolean }) {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1">{children}</main>
+      <main className={`flex-1 ${flush ? "" : "pt-[5.5rem]"}`}>{children}</main>
       <Footer />
     </div>
   );
