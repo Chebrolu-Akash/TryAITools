@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportError } from "../lib/error-reporting";
 import { OG_IMAGE, SITE_DESCRIPTION, SITE_NAME } from "../lib/site";
+import { GA_INLINE_SCRIPT, GA_SCRIPT_SRC, usePageViewTracking } from "../lib/analytics";
 
 function NotFoundComponent() {
   return (
@@ -103,6 +104,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
       { rel: "manifest", href: "/site.webmanifest" },
     ],
+    scripts: [
+      { src: GA_SCRIPT_SRC, async: true },
+      { children: GA_INLINE_SCRIPT },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -126,6 +131,7 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  usePageViewTracking();
 
   return (
     <QueryClientProvider client={queryClient}>

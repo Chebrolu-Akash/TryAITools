@@ -28,6 +28,7 @@ export const Route = createFileRoute("/privacy")({
         <ul>
           <li><strong>Google Fonts</strong> serves the typefaces used on this site, so your browser contacts Google when a page loads.</li>
           <li><strong>Tool logos</strong> are loaded from Google&apos;s favicon service, so your browser requests them from Google servers.</li>
+          <li><strong>Google Analytics 4</strong> measures how visitors use the site (pages viewed, approximate location, device and browser) so we can improve it.</li>
           <li><strong>Cloud hosting and CDN</strong> providers deliver the site and may process request data on our behalf.</li>
         </ul>
         <p>These providers have their own privacy policies and we do not control how they handle data.</p>
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/privacy")({
       <section>
         <h2>Cookies and analytics</h2>
         <p>
-          We do not set advertising or tracking cookies. If we add analytics in the future, we will describe it here and update the date above.
+          We do not set advertising cookies. Google Analytics may set cookies or use similar identifiers to recognize returning visitors and measure usage in aggregate. You can opt out with the <a href="https://tools.google.com/dlpage/gaoptout">Google Analytics opt-out browser add-on</a> or by blocking cookies in your browser settings.
         </p>
       </section>
       <section>
