@@ -7,10 +7,10 @@ function Chip({ tool }: { tool: FeaturedTool }) {
   const [failed, setFailed] = useState(false);
   return (
     <Link
-      to="/tools"
-      search={{ q: tool.label }}
+      to="/tools/$slug"
+      params={{ slug: tool.slug }}
       draggable={false}
-      title={`Find ${tool.label} and similar tools`}
+      title={`${tool.label}: overview, prompt and alternatives`}
       className="group inline-flex items-center gap-2.5 rounded-md text-base font-bold text-white/95 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {failed ? (

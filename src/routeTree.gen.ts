@@ -11,7 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
-import { Route as ToolsRouteImport } from './routes/tools'
+import { Route as ToolsIndexRouteImport } from './routes/tools.index'
+import { Route as ToolsSlugRouteImport } from './routes/tools.$slug'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -29,9 +30,14 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ToolsRoute = ToolsRouteImport.update({
-  id: '/tools',
-  path: '/tools',
+const ToolsIndexRoute = ToolsIndexRouteImport.update({
+  id: '/tools/',
+  path: '/tools/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ToolsSlugRoute = ToolsSlugRouteImport.update({
+  id: '/tools/$slug',
+  path: '/tools/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AffiliateDisclosureRoute = AffiliateDisclosureRouteImport.update({
@@ -68,7 +74,8 @@ const CategoriesSlugRoute = CategoriesSlugRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/tools': typeof ToolsRoute
+  '/tools/$slug': typeof ToolsSlugRoute
+  '/tools/': typeof ToolsIndexRoute
   '/affiliate-disclosure': typeof AffiliateDisclosureRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -79,7 +86,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/tools': typeof ToolsRoute
+  '/tools/$slug': typeof ToolsSlugRoute
+  '/tools': typeof ToolsIndexRoute
   '/affiliate-disclosure': typeof AffiliateDisclosureRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -91,7 +99,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/tools': typeof ToolsRoute
+  '/tools/$slug': typeof ToolsSlugRoute
+  '/tools/': typeof ToolsIndexRoute
   '/affiliate-disclosure': typeof AffiliateDisclosureRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
@@ -101,14 +110,15 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/tools' | '/affiliate-disclosure' | '/privacy' | '/terms' | '/sitemap.xml' | '/categories/$slug' | '/categories/'
+  fullPaths: '/' | '/about' | '/tools/$slug' | '/tools/' | '/affiliate-disclosure' | '/privacy' | '/terms' | '/sitemap.xml' | '/categories/$slug' | '/categories/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/tools' | '/affiliate-disclosure' | '/privacy' | '/terms' | '/sitemap.xml' | '/categories/$slug' | '/categories'
+  to: '/' | '/about' | '/tools/$slug' | '/tools' | '/affiliate-disclosure' | '/privacy' | '/terms' | '/sitemap.xml' | '/categories/$slug' | '/categories'
   id:
     | '__root__'
     | '/'
     | '/about'
-    | '/tools'
+    | '/tools/$slug'
+    | '/tools/'
     | '/affiliate-disclosure'
     | '/privacy'
     | '/terms' | '/sitemap.xml'
@@ -119,7 +129,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
-  ToolsRoute: typeof ToolsRoute
+  ToolsSlugRoute: typeof ToolsSlugRoute
+  ToolsIndexRoute: typeof ToolsIndexRoute
   AffiliateDisclosureRoute: typeof AffiliateDisclosureRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
@@ -144,11 +155,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tools': {
-      id: '/tools'
+    '/tools/': {
+      id: '/tools/'
       path: '/tools'
-      fullPath: '/tools'
-      preLoaderRoute: typeof ToolsRouteImport
+      fullPath: '/tools/'
+      preLoaderRoute: typeof ToolsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tools/$slug': {
+      id: '/tools/$slug'
+      path: '/tools/$slug'
+      fullPath: '/tools/$slug'
+      preLoaderRoute: typeof ToolsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/affiliate-disclosure': {
@@ -199,7 +217,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
-  ToolsRoute: ToolsRoute,
+  ToolsSlugRoute: ToolsSlugRoute,
+  ToolsIndexRoute: ToolsIndexRoute,
   AffiliateDisclosureRoute: AffiliateDisclosureRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,

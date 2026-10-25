@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
 import { useState } from "react";
+import { slugOfTool } from "@/lib/tool-pages";
 import { domainOf, logoOf, shortName, slugOf, type Tool } from "@/lib/tools";
 
 export function ToolCard({ tool, showCategory = true }: { tool: Tool; showCategory?: boolean }) {
@@ -17,7 +18,7 @@ export function ToolCard({ tool, showCategory = true }: { tool: Tool; showCatego
           )}
         </div>
         <div className="min-w-0">
-          <h3 className="truncate font-semibold">{tool.name}</h3>
+          <h3 className="truncate font-semibold"><Link to="/tools/$slug" params={{ slug: slugOfTool(tool) }} className="hover:text-primary">{tool.name}</Link></h3>
           <p className="truncate text-xs text-muted-foreground">{domainOf(tool.url)}</p>
         </div>
       </div>
@@ -35,16 +36,27 @@ export function ToolCard({ tool, showCategory = true }: { tool: Tool; showCatego
           <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">{tool.subcategory.replace(/^AI /, "")}</span>
         )}
       </div>
-      {tool.url && (
-        <a
-          href={tool.url}
-          target="_blank"
-          rel="noopener noreferrer sponsored"
-          className="mt-5 inline-flex items-center justify-center gap-1 rounded-xl border border-primary/30 py-2 text-sm font-semibold text-primary transition group-hover:bg-primary group-hover:text-primary-foreground"
+      <div className="mt-5 flex items-center gap-2">
+        <Link
+          to="/tools/$slug"
+          params={{ slug: slugOfTool(tool) }}
+          className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-primary/30 py-2 text-sm font-semibold text-primary transition group-hover:bg-primary group-hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          Visit Tool <ArrowUpRight className="h-4 w-4" />
-        </a>
-      )}
+          View Details
+        </Link>
+        {tool.url && (
+          <a
+            href={tool.url}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            aria-label={`Open ${tool.name} official website in a new tab`}
+            title="Official website"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border text-muted-foreground transition hover:border-primary/40 hover:text-primary"
+          >
+            <ArrowUpRight className="h-4 w-4" />
+          </a>
+        )}
+      </div>
     </div>
   );
 }

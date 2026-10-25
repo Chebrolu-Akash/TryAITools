@@ -6,7 +6,7 @@ import { ToolCard } from "@/components/site/ToolCard";
 import { pageHead } from "@/lib/seo";
 import { categories, shortName, tools } from "@/lib/tools";
 
-export const Route = createFileRoute("/tools")({
+export const Route = createFileRoute("/tools/")({
   validateSearch: (s: Record<string, unknown>): { q?: string } =>
     typeof s["q"] === "string" ? { q: s["q"] as string } : {},
   head: () =>

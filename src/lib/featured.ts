@@ -1,3 +1,4 @@
+import { slugOfTool } from "@/lib/tool-pages";
 import { logoOf, tools, type Tool } from "@/lib/tools";
 
 // Tool names (exactly as they appear in tools.json) shown in the hero logo loops.
@@ -17,7 +18,7 @@ const LOGO_URL: Record<string, string> = {
   "Adobe Firefly": "https://www.adobe.com",
 };
 
-export type FeaturedTool = { name: string; label: string; logo: string };
+export type FeaturedTool = { name: string; label: string; logo: string; slug: string };
 
 const build = (names: string[]): FeaturedTool[] =>
   names
@@ -27,6 +28,7 @@ const build = (names: string[]): FeaturedTool[] =>
       name: t.name,
       label: t.name.replace(/ \(.+\)$/, ""),
       logo: logoOf(LOGO_URL[t.name] ?? t.url, 128),
+      slug: slugOfTool(t),
     }));
 
 export const featuredRowOne = build(ROW_ONE);
