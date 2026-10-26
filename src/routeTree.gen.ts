@@ -14,6 +14,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as ToolsIndexRouteImport } from './routes/tools.index'
 import { Route as ToolsSlugRouteImport } from './routes/tools.$slug'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as ApiDbCheckRouteImport } from './routes/api.db-check'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as AffiliateDisclosureRouteImport } from './routes/affiliate-disclosure'
@@ -55,6 +56,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDbCheckRoute = ApiDbCheckRouteImport.update({
+  id: '/api/db-check',
+  path: '/api/db-check',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/api/db-check': typeof ApiDbCheckRoute
   '/categories/$slug': typeof CategoriesSlugRoute
   '/categories/': typeof CategoriesIndexRoute
 }
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/api/db-check': typeof ApiDbCheckRoute
   '/categories/$slug': typeof CategoriesSlugRoute
   '/categories': typeof CategoriesIndexRoute
 }
@@ -105,14 +113,15 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/api/db-check': typeof ApiDbCheckRoute
   '/categories/$slug': typeof CategoriesSlugRoute
   '/categories/': typeof CategoriesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/tools/$slug' | '/tools/' | '/affiliate-disclosure' | '/privacy' | '/terms' | '/sitemap.xml' | '/categories/$slug' | '/categories/'
+  fullPaths: '/' | '/about' | '/tools/$slug' | '/tools/' | '/affiliate-disclosure' | '/privacy' | '/terms' | '/sitemap.xml' | '/api/db-check' | '/categories/$slug' | '/categories/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/tools/$slug' | '/tools' | '/affiliate-disclosure' | '/privacy' | '/terms' | '/sitemap.xml' | '/categories/$slug' | '/categories'
+  to: '/' | '/about' | '/tools/$slug' | '/tools' | '/affiliate-disclosure' | '/privacy' | '/terms' | '/sitemap.xml' | '/api/db-check' | '/categories/$slug' | '/categories'
   id:
     | '__root__'
     | '/'
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
     | '/affiliate-disclosure'
     | '/privacy'
     | '/terms' | '/sitemap.xml'
+    | '/api/db-check'
     | '/categories/$slug'
     | '/categories/'
   fileRoutesById: FileRoutesById
@@ -135,6 +145,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ApiDbCheckRoute: typeof ApiDbCheckRoute
   CategoriesSlugRoute: typeof CategoriesSlugRoute
   CategoriesIndexRoute: typeof CategoriesIndexRoute
 }
@@ -190,6 +201,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/db-check': {
+      id: '/api/db-check'
+      path: '/api/db-check'
+      fullPath: '/api/db-check'
+      preLoaderRoute: typeof ApiDbCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -223,6 +241,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ApiDbCheckRoute: ApiDbCheckRoute,
   CategoriesSlugRoute: CategoriesSlugRoute,
   CategoriesIndexRoute: CategoriesIndexRoute,
 }
