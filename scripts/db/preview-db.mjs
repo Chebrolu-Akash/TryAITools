@@ -14,7 +14,7 @@ const [cmd, nameArg = "tryaitools-preview"] = process.argv.slice(2);
 const db = assertPreviewDb(nameArg);
 const out = resolve("db/import/out");
 const wr = (args) => {
-  const r = spawnSync("npx", ["wrangler", ...args, "--config", "wrangler.jsonc"], { encoding: "utf8" });
+  const r = spawnSync("bun", ["x", "wrangler", ...args, "--config", "wrangler.jsonc"], { encoding: "utf8" });
   if (r.status !== 0) { console.error(r.stdout, r.stderr); process.exit(r.status ?? 1); }
   return r.stdout;
 };
