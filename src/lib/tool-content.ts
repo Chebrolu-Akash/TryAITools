@@ -1,13 +1,18 @@
 import { shortName, type Tool } from "@/lib/tools";
 
 export type ToolContent = {
-  description: string;
-  useCases: string[];
-  features: string[];
-  pros: string[];
-  limits: string[];
-  audience: string;
+  /** One short sentence for the hero. */
+  tagline: string;
+  /** Extra overview copy that does not repeat the tagline; null when there is nothing more to say. */
+  overview: string | null;
+  bestFor: string;
+  /** Only present for tools with hand-written, tool-specific information. */
+  features: string[] | null;
+  pros: string[] | null;
+  limits: string[] | null;
   prompt: string;
+  /** "tool" = written for this tool; "starter" = generic starter prompt for the tool's category. */
+  promptKind: "tool" | "starter";
   steps: string[];
   tips: string[];
   /** True when the copy was written specifically for this tool rather than from the category template. */
@@ -168,66 +173,83 @@ const catSlug = (category: string) =>
   category.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 // Hand-written copy for popular tools. Keyed by lower-case name without a trailing "(Company)".
-const CURATED: Record<string, Partial<ToolContent> & { description: string }> = {
+type Curated = { description: string; features: string[]; pros: string[]; limits: string[]; prompt?: string; steps?: string[]; tips?: string[] };
+const CURATED: Record<string, Curated> = {
   chatgpt: {
     description: "ChatGPT is OpenAI's conversational AI assistant. You describe what you need in plain language and it can write, explain, summarize, brainstorm and help with code, then refine its answer as you reply.",
     features: ["Natural conversation with follow-up questions", "Writing, summarizing and rewriting", "Coding help and debugging", "Often supports file uploads and image input (varies by plan)"],
     pros: ["Very flexible for many kinds of tasks", "Easy to start with plain-language prompts", "Can iterate on its answers in the same chat"],
     limits: ["Can state incorrect information confidently", "Features and limits depend on your plan", "Avoid sharing sensitive data without checking the privacy settings"],
+    prompt: "I want to [goal, e.g. plan a week of healthy dinners] and I'm [your situation, e.g. cooking for two on a budget].\nBackground: [anything it should know]\nFormat: [e.g. a table / a numbered list / short paragraphs]\nBefore you answer, ask me up to 3 questions if anything is unclear. Then give your answer and suggest one way to improve it.",
+    steps: ["Go to chatgpt.com and sign in or create a free account.", "Start a new chat and paste the prompt, replacing each [placeholder].", "Answer any clarifying questions, then reply with changes such as \"shorter\", \"more formal\" or \"add examples\".", "Check facts, numbers and sources before you use the result."],
+    tips: ["State your goal and the format you want.", "Don't paste confidential information unless you've checked the privacy settings."],
   },
   claude: {
     description: "Claude is Anthropic's AI assistant. It's used for writing, analysis, coding and working through long documents, and is designed to follow detailed instructions in a helpful, careful way.",
     features: ["Long-document reading and summaries", "Writing and editing with tone control", "Coding and analysis help", "Can work with uploaded files (varies by plan)"],
     pros: ["Handles long, detailed instructions well", "Strong at writing and analysis", "Clear, structured answers"],
     limits: ["Can still make mistakes, so verify key facts", "Usage limits depend on your plan"],
+    prompt: "Here is a document: [paste text or attach a file].\nPlease: 1) summarize it in 5 bullet points, 2) list any decisions or action items with owners, 3) point out anything unclear or missing.\nAudience for the summary: [who will read it]. Keep it under [length].",
+    steps: ["Open claude.ai and sign in or create an account.", "Start a new chat. Attach or paste your document.", "Paste the prompt and fill in the placeholders.", "Ask follow-up questions or request a different format, then verify key details against the original."],
+    tips: ["Give it the full context rather than a fragment.", "Ask it to quote the passage a claim comes from, so you can check it."],
   },
   gemini: {
     description: "Gemini is Google's AI assistant. It answers questions, helps with writing and planning, and works with other Google services, so it can fit naturally into existing Google workflows.",
     features: ["Conversational answers and brainstorming", "Writing and summarizing", "Works with Google apps (varies by plan)", "Image and file input in supported versions"],
     pros: ["Convenient if you already use Google products", "Handles many everyday tasks"],
     limits: ["Features differ by region and account type", "Verify important facts independently"],
+    prompt: "Help me with [task, e.g. plan a 3-day trip to Jaipur].\nMy preferences: [budget, interests, constraints]\nGive me a clear plan in a table, then list 3 things I should double-check before I act.",
   },
   midjourney: {
     description: "Midjourney generates images from text descriptions, known for highly stylized, artistic results. You write a prompt, review a set of options, then vary or upscale the ones you like.",
     features: ["Text-to-image generation", "Style and aspect-ratio parameters", "Variations and upscaling", "Community gallery for inspiration"],
     pros: ["Distinctive, high-quality artistic looks", "Fast iteration on a prompt"],
     limits: ["Prompt wording takes practice", "Check the licence terms for commercial use"],
+    prompt: "[subject, e.g. a cozy reading nook by a rainy window], [style, e.g. soft watercolor illustration], [lighting, e.g. warm lamplight], [composition, e.g. wide shot] --ar 16:9\nAvoid: [things to leave out]",
   },
   "perplexity ai": {
     description: "Perplexity is an AI-powered answer engine. You ask a question and it replies with a summary that includes cited sources, so you can check where the information came from.",
     features: ["Answers with source citations", "Follow-up questions in context", "Focus modes for different kinds of search"],
     pros: ["Sources make answers easier to verify", "Fast for research and fact-finding"],
     limits: ["Still check the cited pages yourself", "Some features need a paid plan"],
+    prompt: "What are the main [topic, e.g. differences between solar and wind power] as of today? Give a short answer, then 5 key points with sources I can open. Note anything where sources disagree.",
   },
   "cursor ai": {
     description: "Cursor is an AI-first code editor. It lets you chat with your codebase, generate and edit code across files, and fix errors without leaving the editor.",
     features: ["AI chat with your project context", "Multi-line code completion", "Edit code with natural-language instructions"],
     pros: ["AI built into the editing workflow", "Understands project context"],
     limits: ["Review every change before accepting", "Some features require a paid plan"],
+    prompt: "In this project, [describe the change, e.g. add input validation to the signup form].\nRelevant files: [file names]\nRequirements: [rules, edge cases]\nExplain your plan first, then make the smallest change that works, and add a test.",
   },
   elevenlabs: {
     description: "ElevenLabs generates realistic speech from text, with many voices and languages. Creators use it for narration, voiceovers, audiobooks and dubbing.",
     features: ["Text-to-speech with natural voices", "Multiple languages", "Voice customization options", "Sound effects and dubbing tools"],
     pros: ["Natural-sounding output", "Quick voiceovers without recording"],
     limits: ["Only clone voices you have permission to use", "Usage is limited by plan"],
+    prompt: "Voiceover script: [paste your script].\nVoice: [e.g. calm, warm narrator]\nPace: [slow / medium]\nPronunciations to check: [names, brands, acronyms]",
   },
   "notion ai": {
     description: "Notion AI adds writing, summarizing and organizing help inside Notion pages and databases, so you can draft, clean up and search your notes without switching apps.",
     features: ["Summarize and rewrite page content", "Draft text inside your workspace", "Help organize notes and tasks"],
     pros: ["Works where your notes already live", "Handy for meeting notes and docs"],
     limits: ["Requires Notion", "AI features may need a paid add-on"],
+    prompt: "Summarize this page in 5 bullet points and list the action items with owners and due dates. Then rewrite the summary as a short update I can send to [audience].",
   },
   canva: {
     description: "Canva is an online design platform with templates and AI tools for social posts, presentations, documents, video and more, aimed at people without design training.",
     features: ["Large template library", "AI image and design helpers", "Brand kits and team sharing", "Presentations, video and print designs"],
     pros: ["Very beginner-friendly", "Fast to produce polished designs"],
     limits: ["Advanced features need a paid plan", "Templates are widely used, so customize them"],
+    prompt: "Design a [format, e.g. Instagram post] for [event or product].\nHeadline: [text]\nStyle: [e.g. clean, bright, modern]\nBrand colours: [hex codes]\nInclude: [logo, photo, call to action]",
   },
   grammarly: {
     description: "Grammarly checks your writing for grammar, spelling, clarity and tone, and offers AI writing help in the apps and websites where you type.",
     features: ["Grammar and spelling checks", "Clarity and tone suggestions", "Works in browsers and many apps", "AI rewriting help"],
     pros: ["Catches mistakes as you type", "Works across many apps"],
     limits: ["Suggestions need your judgement", "Premium features require a paid plan"],
+    prompt: "(Grammarly checks the text you write, so paste your draft into it and review the suggestions. Use this checklist.)\nDraft: [your text]\nAudience: [e.g. my manager / customers]\nGoal: [e.g. sound confident but friendly]\nCheck: 1) correctness, 2) clarity and concision, 3) tone, 4) anything that could be misread.",
+    steps: ["Open Grammarly's editor, or install the browser extension or desktop app.", "Paste your text or start typing, and set your goals (audience, tone, formality).", "Review each suggestion and accept or dismiss it. Don't accept blindly.", "Re-read the final version aloud for meaning and flow."],
+    tips: ["Set the audience and tone first so suggestions fit your goal.", "Dismiss suggestions that change your intended meaning."],
   },
   "jasper ai": {
     description: "Jasper is an AI content platform for marketing teams. It helps produce on-brand copy for campaigns, blogs and ads using brand voice settings and templates.",
@@ -333,32 +355,88 @@ const CURATED: Record<string, Partial<ToolContent> & { description: string }> = 
   },
 };
 
+
+// Prompts written for how each tool is actually used. Placeholders in [brackets] are for the reader to fill in.
+const PROMPTS: Record<string, string> = {
+  chatgpt: "Act as my [role, e.g. project manager]. I'm working on [project or problem].\nContext: [relevant background]\nI need: [the output, e.g. a 5-step plan / a draft email / a summary]\nFormat: [bullets, table, or short paragraphs]\nBefore answering, ask me up to 3 clarifying questions if anything is unclear.",
+  claude: "I'm pasting a document below. Read it carefully, then:\n1) Summarize it in 5 bullet points\n2) List the key decisions or risks\n3) Suggest 3 questions I should ask next\nKeep the tone [e.g. neutral and concise] and quote the exact lines you rely on.\n\nDocument:\n[paste text here]",
+  gemini: "Help me plan [goal, e.g. a 3-day trip to Jaipur / a study schedule for exam X].\nConstraints: [budget, dates, preferences]\nGive me a day-by-day plan in a table, then a short checklist of things to book or prepare in advance.",
+  midjourney: "[subject] in [setting], [art style, e.g. cinematic photography], [lighting, e.g. soft golden hour], [camera or composition, e.g. 35mm, shallow depth of field], [colour palette] --ar 16:9 --v [version you use]",
+  "perplexity ai": "Research [topic] and give me a sourced overview.\nFocus on: [angle, e.g. developments in the last 12 months]\nInclude: key facts, competing viewpoints, and links to the sources you used.\nFinish with 3 follow-up questions worth exploring.",
+  "cursor ai": "In this project, I want to [feature or fix].\nRelevant files: [file names or folders]\nExpected behaviour: [what should happen]\nCurrent behaviour: [what happens now, error message if any]\nPlease propose the smallest change that works, explain it, and update or add tests.",
+  elevenlabs: "Voiceover script for [use, e.g. a 60-second product explainer].\nVoice: [e.g. warm, confident, mid-paced]\nLanguage: [language]\nPronunciation notes: [names or terms to spell phonetically]\nScript:\n[paste script, using commas and full stops for natural pauses]",
+  "notion ai": "Using the notes on this page, create:\n1) A 5-line summary\n2) A table of action items with owner and due date\n3) A list of open questions\nKeep the language [e.g. plain and brief] and don't add anything that isn't in the notes.",
+  canva: "I'm designing a [format, e.g. Instagram carousel / 10-slide pitch deck] for [audience].\nTopic: [topic]\nBrand: [colours, fonts, tone]\nGive me a slide-by-slide outline with a headline, 2 supporting points and a suggested visual for each.",
+  grammarly: "Rewrite the text below to be [clear / concise / more formal / friendlier] for [audience].\nKeep my meaning, fix grammar and punctuation, and mark anything you changed so I can review it.\n\nText:\n[paste your text]",
+  "jasper ai": "Write [asset, e.g. a landing-page hero section] for [product].\nBrand voice: [3 adjectives]\nAudience: [who and their main pain point]\nKey benefit: [one sentence]\nGive me 3 headline options, a 40-word subheading and a call to action.",
+  "runway ml": "A [shot type, e.g. slow dolly-in] of [subject] in [setting], [lighting and mood], [camera movement], [duration, e.g. 5 seconds]. Style: [e.g. cinematic, 24fps look]. Keep the subject consistent and avoid [things to exclude].",
+  synthesia: "Create a [length]-minute training video for [audience].\nTopic: [topic]\nScript (conversational, one idea per paragraph):\n[paste script]\nAvatar tone: [e.g. friendly and professional]\nOn-screen text for each section: [key phrases]",
+  heygen: "Create a [length] video where the presenter explains [topic] to [audience].\nScript:\n[paste script, under 150 words per scene]\nTone: [e.g. confident, friendly]\nLanguage: [language, and translate to: other language if needed]",
+  "suno ai": "Genre: [e.g. lo-fi indie pop]\nMood: [e.g. hopeful, late-night]\nTempo: [e.g. slow, 80 BPM]\nVocals: [e.g. soft female voice]\nTheme: [what the song is about]\nLyrics (optional):\n[verse / chorus]",
+  "leonardo ai": "[character or object] for a [game / brand / book] in [art style, e.g. hand-painted fantasy], [pose or angle], [lighting], [background]. Keep it consistent with: [reference description]. Avoid: [unwanted elements].",
+  descript: "Here is my transcript. Tighten it for a [length] edit:\n- Remove filler words and repeated sentences\n- Keep the key points: [list]\n- Suggest chapter titles with timestamps\n\nTranscript:\n[paste transcript]",
+  "murf ai": "Narration for [use, e.g. an e-learning module].\nVoice: [e.g. calm male, neutral accent]\nPace: [slow / medium]\nEmphasize: [words to stress]\nScript:\n[paste script with short sentences and clear punctuation]",
+  gamma: "Create a [number]-slide presentation on [topic] for [audience].\nGoal: [what they should decide or learn]\nTone: [e.g. clear and persuasive]\nInclude: a problem slide, 3 key points with one data point each, and a closing call to action.",
+  zapier: "I want to automate this: when [trigger, e.g. a new form response arrives in Google Forms], then [action 1, e.g. add a row in Sheets], and [action 2, e.g. send a Slack message].\nApps I use: [list]\nList the steps I need to set up, the fields to map and what to test before turning it on.",
+  "otter.ai": "From the meeting transcript below, produce:\n1) A 5-line summary\n2) Decisions made\n3) Action items with owner and deadline\n4) Questions left open\n\nTranscript:\n[paste transcript]",
+  "copy.ai": "Write a [format, e.g. cold email sequence of 3 emails] for [product] aimed at [job title] at [type of company].\nPain point: [problem]\nProof point: [metric or customer result you can actually claim]\nTone: [voice]\nEnd each email with a single clear call to action.",
+  "pika labs": "[subject doing an action] in [setting], [camera motion, e.g. slow pan right], [style, e.g. soft 3D animation], [mood and lighting], [duration]. Keep it simple: one subject and one movement.",
+  quillbot: "Paraphrase the passage below in [Standard / Fluency / Formal] mode.\nKeep the meaning and any quotes or citations unchanged, and keep it close to [length] words.\n\nPassage:\n[paste your own text]",
+  writesonic: "Write an SEO article titled [title] for [audience].\nPrimary keyword: [keyword]; secondary keywords: [list]\nStructure: introduction, 5 H2 sections, FAQ and conclusion\nTone: [voice]\nLength: [e.g. 1,200 words]. Don't invent statistics.",
+  figma: "Design a [screen, e.g. mobile checkout] for [product].\nUser goal: [what they want to do]\nComponents needed: [list]\nStyle: [brand colours, spacing, corner radius]\nSuggest the layout, the states for each component (default, hover, error) and 2 accessibility checks.",
+  poe: "Compare how different models answer this. Question: [your question]\nFor each answer, I want: a short answer, the reasoning, and any uncertainty. Then tell me which answer is strongest and why.",
+};
+
 const stripAi = (s: string) => s.replace(/^AI /, "").replace(/ Tools$/, "");
 const fill = (s: string, tool: Tool) => s.replace(/\{name\}/g, tool.name.replace(/ \(.+\)$/, ""));
+
+/** Key used to look up hand-written content (name without a trailing "(Company)", lower-cased). */
+export const curatedKey = (tool: Tool) => tool.name.replace(/ \(.+\)$/, "").toLowerCase();
+export const hasCuratedContent = (tool: Tool) => curatedKey(tool) in CURATED;
+
+const firstSentenceSplit = (text: string): [string, string] => {
+  const m = text.match(/^(.+?[.!?])(\s+|$)(.*)$/s);
+  return m ? [m[1]!.trim(), (m[3] ?? "").trim()] : [text.trim(), ""];
+};
 
 export function contentFor(tool: Tool): ToolContent {
   const tpl = T[catSlug(tool.category)] ?? FALLBACK;
   const name = tool.name.replace(/ \(.+\)$/, "");
   const sub = stripAi(tool.subcategory || tool.category);
-  const cur = CURATED[name.toLowerCase()];
-  const generic: ToolContent = {
-    description: `${name} is an AI tool in the ${sub} category. People use it to ${tpl.purpose}. TryAITools summarizes what it's typically used for here, so check the official website for current features and pricing.`,
-    useCases: [`Everyday ${sub.toLowerCase()} tasks with ${name}`, ...tpl.useCases],
-    features: tpl.features,
-    pros: ["Can save time on routine work", "Quick to try with a free or trial plan if offered", "Fits into an existing workflow in the " + shortName(tool.category) + " space"],
-    limits: ["AI output can contain mistakes, so review it", "Features, limits and pricing change; confirm on the official site", "Check the privacy terms before sharing sensitive data"],
-    audience: tpl.audience,
-    prompt: fill(tpl.prompt, tool),
-    steps: tpl.steps.map((s) => fill(s, tool)),
-    tips: tpl.tips,
-    curated: false,
-  };
-  if (!cur) return generic;
+  const cur = CURATED[curatedKey(tool)];
+  const steps = tpl.steps.map((s) => fill(s, tool));
+  const tips = tpl.tips.slice(0, 2);
+
+  if (cur) {
+    const [tagline, rest] = firstSentenceSplit(cur.description);
+    const own = PROMPTS[curatedKey(tool)];
+    return {
+      tagline,
+      overview: rest || null,
+      bestFor: tpl.audience,
+      features: cur.features ?? null,
+      pros: cur.pros ?? null,
+      limits: cur.limits ?? null,
+      prompt: own ?? fill(tpl.prompt, tool),
+      promptKind: own ? "tool" : "starter",
+      steps,
+      tips,
+      curated: true,
+    };
+  }
+
+  // Limited source data: say what is actually known and keep generic guidance clearly labelled.
   return {
-    ...generic,
-    ...cur,
-    useCases: cur.useCases ?? generic.useCases,
-    description: cur.description,
-    curated: true,
+    tagline: `${name} is an AI tool for ${sub.toLowerCase()}.`,
+    overview: `${name} is listed under ${tool.category}. Tools in this group are generally used to ${tpl.purpose}. We haven't reviewed ${name} in detail yet, so check the official website for its features and pricing.`,
+    bestFor: tpl.audience,
+    features: null,
+    pros: null,
+    limits: null,
+    prompt: fill(tpl.prompt, tool),
+    promptKind: "starter",
+    steps,
+    tips,
+    curated: false,
   };
 }

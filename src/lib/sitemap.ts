@@ -1,4 +1,4 @@
-import { allToolSlugs } from "@/lib/tool-pages";
+import { indexableToolSlugs } from "@/lib/tool-pages";
 import { categories } from "@/lib/tools";
 import { absoluteUrl } from "@/lib/site";
 
@@ -18,7 +18,7 @@ const STATIC_PAGES: SitemapEntry[] = [
 export const sitemapEntries = (): SitemapEntry[] => [
   ...STATIC_PAGES,
   ...categories.map((c): SitemapEntry => ({ path: `/categories/${c.slug}`, changefreq: "weekly", priority: 0.8 })),
-  ...allToolSlugs().map((slug): SitemapEntry => ({ path: `/tools/${slug}`, changefreq: "monthly", priority: 0.6 })),
+  ...indexableToolSlugs().map((slug): SitemapEntry => ({ path: `/tools/${slug}`, changefreq: "monthly", priority: 0.6 })),
 ];
 
 const escapeXml = (s: string) =>
