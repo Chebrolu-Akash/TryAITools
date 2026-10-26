@@ -3,7 +3,7 @@ import { ArrowUpRight, Check, ChevronRight, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { CopyPrompt } from "@/components/site/CopyPrompt";
 import { Page } from "@/components/site/Layout";
-import { alternativesFor, relatedFor, siblingSubcategories, slugOfTool, toolBySlugName } from "@/lib/tool-pages";
+import { alternativesFor, isIndexable, relatedCategories, relatedTools, slugOfTool, toolBySlugName } from "@/lib/tool-pages";
 import { contentFor } from "@/lib/tool-content";
 import { pageHead } from "@/lib/seo";
 import { SITE_NAME, absoluteUrl } from "@/lib/site";
@@ -12,7 +12,6 @@ import { domainOf, logoOf, shortName, slugOf, type Tool } from "@/lib/tools";
 const cleanName = (t: Tool) => t.name.replace(/ \(.+\)$/, "");
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c");
 const clip = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s);
-const noSub = (s: string) => s.replace(/^AI /, "");
 
 export const Route = createFileRoute("/tools/$slug")({
   loader: ({ params }) => {
@@ -77,41 +76,12 @@ function Logo({ tool, size }: { tool: Tool; size: number }) {
   );
 }
 
-function Card({ title, children, className = "" }: { title: string; children: ReactNode; className?: string }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className={`rounded-3xl border border-primary/10 bg-card p-5 shadow-card sm:p-7 ${className}`}>
+    <section className="rounded-3xl border border-primary/10 bg-card p-5 shadow-card sm:p-7">
       <h2 className="text-xl font-extrabold tracking-tight sm:text-2xl">{title}</h2>
       <div className="mt-4">{children}</div>
     </section>
-  );
-}
-
-function Bullets({ items, icon }: { items: string[]; icon: "check" | "x" }) {
-  return (
-    <ul className="space-y-2.5">
-      {items.map((t) => (
-        <li key={t} className="flex gap-2 text-sm leading-6 text-foreground/80">
-          {icon === "check" ? <Check className="mt-1 h-4 w-4 shrink-0 text-primary" aria-hidden /> : <X className="mt-1 h-4 w-4 shrink-0 text-destructive" aria-hidden />}
-          {t}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function ToolLink({ tool }: { tool: Tool }) {
-  return (
-    <Link
-      to="/tools/$slug"
-      params={{ slug: slugOfTool(tool) }}
-      className="group flex items-center gap-3 rounded-2xl border border-primary/10 bg-background p-3 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <Logo tool={tool} size={44} />
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-bold group-hover:text-primary">{cleanName(tool)}</span>
-        <span className="block truncate text-xs text-muted-foreground">{noSub(tool.subcategory || tool.category)}</span>
-      </span>
-    </Link>
   );
 }
 
