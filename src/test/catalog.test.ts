@@ -13,6 +13,7 @@ import {
   catalogFromJson,
   getCatalog,
   loadCatalogFromD1,
+  loadToolCopy,
   redirectFor,
   resetCatalogCache,
 } from "@/lib/catalog/source";
@@ -117,7 +118,9 @@ describe("D1 as the source of truth", () => {
     expect(c.tools.map(toPublic)).toEqual(expected.map(toPublic));
     expect(c.indexableSlugs()).toEqual(json.indexableSlugs().filter((s) => !flagged.has(s)));
     for (const t of c.tools.filter((x) => x.indexable))
-      expect(c.contentOf(t)).toEqual(json.contentOf(json.bySlug.get(t.slug)!));
+      expect(c.contentOf(t, await loadToolCopy(t.slug))).toEqual(
+        json.contentOf(json.bySlug.get(t.slug)!),
+      );
   });
 
   it("never exposes drafts, tools in review, archived or flagged tools, or anything in an unpublished category", async () => {
@@ -145,7 +148,7 @@ describe("D1 as the source of truth", () => {
       const res = await handleAdminApi(
         new Request(`https://admin.test/api/admin/${path}`, {
           method,
-          body: body === undefined ? undefined : JSON.stringify(body),
+          body: body === undefined ? null : JSON.stringify(body),
           headers: {
             "cf-access-jwt-assertion": token,
             ...(method === "GET"
@@ -155,7 +158,7 @@ describe("D1 as the source of truth", () => {
                   origin: "https://admin.test",
                   "content-type": "application/json",
                 }),
-          },
+          } as Record<string, string>,
         }),
         {
           env: async () => goodEnv,
@@ -192,7 +195,9 @@ describe("D1 as the source of truth", () => {
     const t = after.bySlug.get("brand-new-ai")!;
     expect(t).toMatchObject({ category: "AI Writing Tools", categorySlug: "ai-writing-tools" });
     expect(after.toolsIn("AI Writing Tools").some((x) => x.slug === "brand-new-ai")).toBe(true);
-    expect(after.contentOf(t).tagline).toBe("Writes your drafts for you.");
+    expect(after.contentOf(t, await loadToolCopy("brand-new-ai")).tagline).toBe(
+      "Writes your drafts for you.",
+    );
     expect(after.tools.length).toBe(before.tools.length + 1);
 
     const unpub = await admin("POST", "tools/brand-new-ai/action", {
@@ -211,8 +216,146 @@ describe("D1 as the source of truth", () => {
     expect(spy.mock.calls.length - first).toBe(1); // only the version check
     db.raw.exec("UPDATE tools SET status = 'draft' WHERE slug = 'chatgpt'");
     expect((await getCatalog()).bySlug.has("chatgpt")).toBe(true); // version unchanged: still cached
-    db.raw.exec("INSERT INTO meta (key, value) VALUES ('catalog_version', 'v2')");
+    db.raw.exec("UPDATE meta SET value = 'v2' WHERE key = 'catalog_version'");
     expect((await getCatalog()).bySlug.has("chatgpt")).toBe(false);
+  });
+
+  it("never reloads on a timer: an unchanged version keeps the cached catalogue indefinitely", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      await getCatalog();
+      const spy = vi.spyOn(db, "prepare");
+      vi.setSystemTime(Date.now() + 24 * 3600_000);
+      await getCatalog();
+      expect(spy.mock.calls.length).toBe(1); // only the version check, no reload
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("concurrent requests share one reload instead of each loading the whole catalogue (Workers CPU limit)", async () => {
+    const spy = vi.spyOn(db, "prepare");
+    const results = await Promise.all(Array.from({ length: 8 }, () => getCatalog()));
+    const tableReads = spy.mock.calls.filter(([sql]) => /FROM tools t JOIN/.test(String(sql)));
+    expect(tableReads).toHaveLength(1);
+    expect(new Set(results).size).toBe(1);
+  });
+
+  /**
+   * Holds matching queries until the test releases them, so tests can force a completion order. The rows are read when
+   * the query runs (a snapshot), so a held reload of an older version really carries the older data.
+   */
+  const holdQueries = (rules: { match: RegExp; limit?: number }[]) => {
+    const prepare = db.prepare.bind(db);
+    const held = rules.map(() => [] as (() => void)[]);
+    vi.spyOn(db, "prepare").mockImplementation((sql: string) => {
+      const st: any = prepare(sql);
+      const i = rules.findIndex(
+        (r, k) => r.match.test(sql) && held[k]!.length < (r.limit ?? Infinity),
+      );
+      if (i < 0) return st;
+      let release!: () => void;
+      const gate = new Promise<void>((r) => (release = r));
+      held[i]!.push(release);
+      const hold = (fn: () => Promise<unknown>) => async () => {
+        const result = fn();
+        await gate;
+        return result;
+      };
+      return { ...st, all: hold(st.all), first: hold(st.first) };
+    });
+    return held;
+  };
+  const CATALOGUE_READ = /FROM tools t JOIN/;
+  const VERSION_READ = /key = 'catalog_version'/;
+  const setVersion = (v: string) =>
+    db.raw.exec(`UPDATE meta SET value = '${v}' WHERE key = 'catalog_version'`);
+
+  it("race: a reload for V1 that finishes after the reload for V2 cannot overwrite the V2 cache", async () => {
+    setVersion("v1");
+    const [reads] = holdQueries([{ match: CATALOGUE_READ }]);
+    const p1 = getCatalog(); // 1. reload for V1 starts
+    await vi.waitFor(() => expect(reads).toHaveLength(1));
+    db.raw.exec("UPDATE tools SET status = 'archived' WHERE slug = 'chatgpt'");
+    setVersion("v2"); // 2. the version changes
+    const p2 = getCatalog(); // 3. reload for V2 starts
+    await vi.waitFor(() => expect(reads).toHaveLength(2));
+    reads![1]!(); // 4. V2 finishes first
+    const v2 = await p2;
+    expect(v2.bySlug.has("chatgpt")).toBe(false);
+    reads![0]!(); // 5. V1 finishes later
+    const v1 = await p1;
+    expect(v1.bySlug.has("chatgpt")).toBe(true); // V1's own caller still gets the V1 snapshot it asked for
+    const before = reads!.length;
+    expect(await getCatalog()).toBe(v2); // the cache still holds V2...
+    expect(reads).toHaveLength(before); // ...and serving it needed no reload
+  });
+
+  it("race: a request that read V1 before a V2 reload started joins that reload instead of starting an older one", async () => {
+    setVersion("v1");
+    const [versionReads, reads] = holdQueries([
+      { match: VERSION_READ, limit: 1 },
+      { match: CATALOGUE_READ },
+    ]);
+    const r1 = getCatalog(); // reads V1, held before it can act on it
+    await vi.waitFor(() => expect(versionReads).toHaveLength(1));
+    db.raw.exec("UPDATE tools SET status = 'archived' WHERE slug = 'chatgpt'");
+    setVersion("v2");
+    const r2 = getCatalog(); // reads V2 and starts the V2 reload
+    await vi.waitFor(() => expect(reads).toHaveLength(1));
+    versionReads![0]!(); // r1 now acts on its (older) V1 reading
+    await new Promise((r) => setTimeout(r, 10));
+    expect(reads).toHaveLength(1); // no second, older reload was started
+    reads![0]!();
+    const [c1, c2] = await Promise.all([r1, r2]);
+    expect(c1).toBe(c2);
+    expect(c2.bySlug.has("chatgpt")).toBe(false);
+    expect(await getCatalog()).toBe(c2);
+  });
+
+  it("resetCatalogCache: a reload started before the reset can never populate the cache afterwards", async () => {
+    const [reads] = holdQueries([{ match: CATALOGUE_READ }]);
+    const old = getCatalog();
+    await vi.waitFor(() => expect(reads).toHaveLength(1));
+    resetCatalogCache();
+    reads![0]!();
+    const stale = await old;
+    const fresh = getCatalog(); // must reload: the pre-reset result was not cached
+    await vi.waitFor(() => expect(reads).toHaveLength(2));
+    reads![1]!();
+    expect(await fresh).not.toBe(stale);
+    expect(await getCatalog()).toBe(await fresh);
+  });
+
+  it("a failed reload keeps the last good catalogue and does not block the next attempt", async () => {
+    const good = await getCatalog();
+    setVersion("v-next");
+    const prepare = db.prepare.bind(db);
+    const spy = vi.spyOn(db, "prepare").mockImplementation((sql: string) => {
+      if (CATALOGUE_READ.test(sql)) throw new Error("D1 hiccup");
+      return prepare(sql);
+    });
+    expect(await getCatalog()).toBe(good); // last good D1 catalogue, not tools.json
+    spy.mockRestore();
+    db.raw.exec("UPDATE tools SET status = 'archived' WHERE slug = 'chatgpt'");
+    const next = await getCatalog(); // the failed reload did not leave a stuck "loading" entry
+    expect(next).not.toBe(good);
+    expect(next.bySlug.has("chatgpt")).toBe(false);
+  });
+
+  it("the import bumps the catalogue version, so a re-import is picked up without a timed refresh", () => {
+    expect(
+      db.raw.prepare("SELECT value FROM meta WHERE key = 'catalog_version'").get().value,
+    ).toMatch(/^import-\d{4}-/);
+  });
+
+  it("the catalogue list holds no copy; a tool page reads its copy only for a public tool", async () => {
+    const c = (await getCatalog())!;
+    expect(c.tools.every((t) => t.copy === null)).toBe(true);
+    db.raw.exec(
+      "UPDATE tools SET tagline = 'Draft secret' , status = 'draft' WHERE slug = 'jasper-ai'",
+    );
+    expect(await loadToolCopy("jasper-ai")).toBeNull();
   });
 
   it("redirects a retired slug only to a public tool", async () => {

@@ -119,6 +119,10 @@ write("01_categories.sql", catStmts);
 for (let i = 0; i < toolStmts.length; i += CHUNK)
   write(`02_tools_${String(i / CHUNK + 1).padStart(2, "0")}.sql`, toolStmts.slice(i, i + CHUNK));
 write("03_curated.sql", curatedStmts);
+// Last: tell running Workers the public catalogue changed (src/lib/catalog/source.ts reloads on a new version).
+write("04_catalog_version.sql", [
+  `INSERT INTO meta (key,value) VALUES ('catalog_version', 'import-' || strftime('%Y-%m-%dT%H:%M:%fZ','now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;`,
+]);
 
 const flagged = tools
   .map((t, i) => ({

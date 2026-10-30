@@ -4,7 +4,7 @@ import { notFound, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { featuredFrom } from "@/lib/featured";
 import { toPublic, type PublicTool } from "./model";
-import { getCatalog, redirectFor } from "./source";
+import { getCatalog, loadToolCopy, redirectFor } from "./source";
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const slugInput = (v: unknown) => {
@@ -90,13 +90,14 @@ export const fetchToolPage = createServerFn({ method: "GET" })
       if (to) throw redirect({ to: "/tools/$slug", params: { slug: to }, statusCode: 301 });
       throw notFound();
     }
+    const copy = c.source === "d1" ? await loadToolCopy(slug) : null;
     const alternatives = c.alternativesFor(tool, 6);
     return {
       tool: toPublic(tool),
-      content: c.contentOf(tool),
+      content: c.contentOf(tool, copy),
       indexable: tool.indexable,
-      seoTitle: tool.copy?.seoTitle ?? null,
-      seoDescription: tool.copy?.seoDescription ?? null,
+      seoTitle: copy?.seoTitle ?? null,
+      seoDescription: copy?.seoDescription ?? null,
       alternatives: alternatives.map(toPublic),
       related: c.relatedTools(tool, alternatives, 4).map(toPublic),
       relatedCategories: c.relatedCategories(tool.category, 4).map(({ name, slug }) => ({

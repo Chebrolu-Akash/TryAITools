@@ -171,9 +171,9 @@ export function buildCatalog(input: {
   }
 
   /** Page copy: the category template / curated text as before, overridden by any copy stored in D1. */
-  function contentOf(tool: CatalogTool): ToolContent {
+  function contentOf(tool: CatalogTool, copy: ToolCopy | null = tool.copy): ToolContent {
     const base = contentFor({ id: tool.slug, ...toPublic(tool) });
-    const c = tool.copy;
+    const c = copy;
     if (!c) return base;
     const list = (v: string[] | null | undefined) => (v && v.length ? v : null);
     const tagline = c.tagline?.trim() || null;
