@@ -42,6 +42,9 @@ const LOGO_URL: Record<string, string> = {
   "Adobe Firefly": "https://www.adobe.com",
 };
 
+/** Every featured name, so the D1 reader can fetch just these rows. */
+export const FEATURED_NAMES: readonly string[] = [...ROW_ONE, ...ROW_TWO];
+
 export type FeaturedTool = { name: string; label: string; logo: string; slug: string };
 
 /** One interleaved list (row one, row two, row one, ...) of the featured tools that are currently public. */

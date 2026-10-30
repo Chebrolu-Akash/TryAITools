@@ -4,7 +4,7 @@ import {
   Palette, PenLine, Search, Share2, ShoppingCart, Sparkles, Users, Video, type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
-import type { BrowseCategory } from "@/lib/catalog/api";
+import type { BrowseCategory } from "@/lib/catalog/views";
 import { logoOf, shortName } from "@/lib/tool-utils";
 
 type PreviewTool = { name: string; url: string };

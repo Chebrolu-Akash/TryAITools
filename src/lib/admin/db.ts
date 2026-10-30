@@ -106,7 +106,7 @@ export async function readSafe<T>(fn: () => Promise<T>): Promise<T> {
 
 /**
  * Marks the public catalogue as changed, in the same batch as the write, so every Worker isolate re-reads it on its next
- * request (see src/lib/catalog/source.ts). The value only needs to be unique.
+ * request (see src/lib/catalog/versioned-cache.ts). The value only needs to be unique.
  */
 export const catalogVersionStep = (now: string): WriteStep => ({
   sql: "INSERT INTO meta (key, value, updated_at) VALUES ('catalog_version', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",

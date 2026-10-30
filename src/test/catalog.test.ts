@@ -1,24 +1,31 @@
 // @vitest-environment node
 /* eslint-disable @typescript-eslint/no-explicit-any -- loosely typed rows and JSON in tests */
-// The public catalogue: same URLs/SEO as the JSON site, admin is the source of truth, private rows never leak.
+// The public catalogue: same URLs/SEO as the JSON site, Admin is the source of truth, private rows never leak, and no
+// public request ever loads the whole catalogue (Workers Free plan: ~10 ms CPU per request, including cold starts).
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import data from "@/data/tools.json";
 import { handleAdminApi } from "@/lib/admin/api";
-import { buildCatalog, toPublic, type Catalog } from "@/lib/catalog/model";
+import { PUBLIC_TOOLS } from "@/lib/catalog/d1-reader";
+import { createJsonReader } from "@/lib/catalog/json-reader";
+import { buildCatalog, toPublic, type PublicCategory, type SourceTool } from "@/lib/catalog/model";
+import { getReader, resetReader, type PublicReader } from "@/lib/catalog/reader";
+import { cachedByVersion, resetVersionedCache, takeTicket } from "@/lib/catalog/versioned-cache";
 import {
-  catalogFromJson,
-  getCatalog,
-  loadCatalogFromD1,
-  loadToolCopy,
-  redirectFor,
-  resetCatalogCache,
-} from "@/lib/catalog/source";
+  browseOf,
+  categoryPageOf,
+  PAGE_SIZE,
+  sitemapOf,
+  summaryOf,
+  toolPageOf,
+  toolsPageOf,
+  normalizeToolsQuery,
+} from "@/lib/catalog/views";
 import { captureRuntimeEnv } from "@/lib/db/env";
-import { featuredFrom } from "@/lib/featured";
 import { buildSitemapXml, sitemapEntries } from "@/lib/sitemap";
 import { contentFor } from "@/lib/tool-content";
 import {
@@ -29,13 +36,21 @@ import {
   slugOfTool,
 } from "@/lib/tool-pages";
 import { categories, tools } from "@/lib/tools";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore -- plain ESM helper shared with the import scripts
+import { importIssue } from "../../scripts/db/slugs.mjs";
 import { goodClaims, goodEnv, makeKey, signJwt, staticJwks } from "./helpers/access-jwt";
 import { assertSqliteAvailable, createTestDb, type TestDb } from "./helpers/sqlite-d1";
 
 const slugs = (list: { slug: string }[]) => list.map((t) => t.slug);
+const jsonFull = buildCatalog({
+  source: "json",
+  categories: data.categories as PublicCategory[],
+  tools: data.tools as SourceTool[],
+});
 
 describe("catalogue built from tools.json is identical to the current public site", () => {
-  const c = catalogFromJson();
+  const c = jsonFull;
   const byTool = new Map(tools.map((t) => [slugOfTool(t), t]));
 
   it("keeps every tool, category, subcategory and slug", () => {
@@ -67,11 +82,13 @@ describe("catalogue built from tools.json is identical to the current public sit
   });
 });
 
-describe("D1 as the source of truth", () => {
+describe("D1 reader", () => {
   it("a SQLite engine is available (never skipped)", () => assertSqliteAvailable());
 
+  // ---------------------------------------------------------------- fixture: tools.json imported exactly as in production
   let importDir = "";
   let importSql: string[] = [];
+  let flagged = new Set<string>();
   beforeAll(() => {
     importDir = mkdtempSync(join(tmpdir(), "tryai-import-"));
     const r = spawnSync(
@@ -82,65 +99,304 @@ describe("D1 as the source of truth", () => {
     if (r.status !== 0) throw new Error(`build-import failed: ${r.stderr}`);
     const report = JSON.parse(readFileSync(join(importDir, "report.json"), "utf8"));
     importSql = report.generatedFiles.map((f: string) => readFileSync(join(importDir, f), "utf8"));
+    flagged = new Set(jsonFull.tools.filter((t) => importIssue(t)).map((t) => t.slug));
   });
   afterAll(() => rmSync(importDir, { recursive: true, force: true }));
 
+  /** What the public site should show from the imported DB: the JSON catalogue minus flagged rows, same slugs. */
+  const expected = () =>
+    buildCatalog({
+      source: "d1",
+      categories: jsonFull.categories,
+      tools: jsonFull.tools
+        .filter((t) => !flagged.has(t.slug))
+        .map((t) => ({ ...toPublic(t), indexing: t.indexable ? "index" : "noindex" })),
+    });
+
   let db: TestDb;
+  let reader: PublicReader;
+  /** Every SQL statement prepared, and every result's row count, for the CPU-sensitive assertions. */
+  let log: { sql: string; rows: number }[] = [];
   const imported = () => {
     const d = createTestDb();
     for (const sql of importSql) d.raw.exec(sql);
     return d;
   };
-  beforeEach(() => {
+  const instrument = (d: TestDb) => {
+    const prepare = d.prepare.bind(d);
+    vi.spyOn(d, "prepare").mockImplementation((sql: string) => {
+      const wrap = (st: any): any => ({
+        ...st,
+        bind: (...p: unknown[]) => wrap(st.bind(...p)),
+        all: async () => {
+          const r = await st.all();
+          log.push({ sql, rows: r.results.length });
+          return r;
+        },
+        first: async () => {
+          const r = await st.first();
+          log.push({ sql, rows: r ? 1 : 0 });
+          return r;
+        },
+      });
+      return wrap(prepare(sql));
+    });
+  };
+  const setVersion = (v: string) =>
+    db.raw.exec(`UPDATE meta SET value = '${v}' WHERE key = 'catalog_version'`);
+
+  beforeEach(async () => {
     db = imported();
-    resetCatalogCache();
+    resetVersionedCache();
+    resetReader();
     captureRuntimeEnv({ DB: db });
+    log = [];
+    instrument(db);
+    reader = await getReader();
+    log = [];
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
-  const json = catalogFromJson();
-  let flagged = new Set<string>();
-  beforeAll(() => {
-    flagged = new Set(
-      imported()
-        .raw.prepare("SELECT slug FROM tools WHERE needs_review = 1")
-        .all()
-        .map((r: any) => r.slug as string),
+  afterEach(() => vi.restoreAllMocks());
+
+  // ---------------------------------------------------------------- parity: the same pages as the JSON site
+  it("tool pages: every public tool is identical to the JSON site (content, SEO, alternatives, related)", async () => {
+    expect(reader.source).toBe("d1");
+    const json = createJsonReader();
+    const e = expected();
+    expect(flagged.size).toBe(9);
+    for (const t of e.tools) {
+      const fromD1 = await reader.toolPage(t.slug);
+      expect(fromD1).toEqual(await json.toolPage(t.slug));
+    }
+    for (const s of flagged) expect(await reader.toolPage(s)).toBeNull();
+    expect(await reader.toolPage("no-such-tool")).toBeNull();
+  });
+
+  it("category pages, home summary, site summary and sitemap match the JSON site minus flagged rows", async () => {
+    const e = expected();
+    for (const c of e.categories)
+      expect(await reader.categoryPage(c.slug)).toEqual(categoryPageOf(e, c.slug));
+    expect(await reader.categoryPage("nope")).toBeNull();
+    expect(await reader.browse()).toEqual(browseOf(e));
+    expect(await reader.summary()).toEqual(summaryOf(e));
+    expect(await reader.sitemap()).toEqual(sitemapOf(e));
+    expect(buildSitemapXml(sitemapEntries(await reader.sitemap()))).toBe(
+      buildSitemapXml(sitemapEntries(sitemapOf(e))),
     );
   });
 
-  it("the imported database publishes every JSON tool except the ones flagged for review, with the same URLs", async () => {
-    const c = (await loadCatalogFromD1(db))!;
-    expect(c.source).toBe("d1");
-    expect(c.categories).toEqual(json.categories);
-    const expected = json.tools.filter((t) => !flagged.has(t.slug));
-    expect(flagged.size).toBeGreaterThan(0);
-    expect(slugs(c.tools)).toEqual(slugs(expected));
-    expect(c.tools.map(toPublic)).toEqual(expected.map(toPublic));
-    expect(c.indexableSlugs()).toEqual(json.indexableSlugs().filter((s) => !flagged.has(s)));
-    for (const t of c.tools.filter((x) => x.indexable))
-      expect(c.contentOf(t, await loadToolCopy(t.slug))).toEqual(
-        json.contentOf(json.bySlug.get(t.slug)!),
-      );
+  // ---------------------------------------------------------------- /tools: server-side search and pagination
+  it("/tools pages through every public tool in display order, 48 at a time", async () => {
+    const e = expected();
+    const seen: string[] = [];
+    for (let page = 1; ; page++) {
+      const r = await reader.toolsPage(normalizeToolsQuery({ page }));
+      expect(r).toEqual(toolsPageOf(e, normalizeToolsQuery({ page })));
+      expect(r.items.length).toBeLessThanOrEqual(PAGE_SIZE);
+      if (r.items.length === 0) break;
+      seen.push(...slugs(r.items));
+    }
+    expect(seen).toEqual(slugs(e.tools));
+    const past = await reader.toolsPage(normalizeToolsQuery({ page: 999 }));
+    expect(past.items).toEqual([]);
+    expect(past.total).toBe(e.tools.length);
   });
 
-  it("never exposes drafts, tools in review, archived or flagged tools, or anything in an unpublished category", async () => {
+  it("/tools search and category filters match the old in-browser behaviour, including tricky input", async () => {
+    const e = expected();
+    const cases = [
+      { q: "chat" },
+      { q: "CHAT" },
+      { q: "writing assistants" },
+      { q: "github.com" },
+      { q: "%" },
+      { q: "_" },
+      { q: "'" },
+      { q: "zzzz-no-match" },
+      { category: "ai-video-tools" },
+      { category: "ai-video-tools", q: "edit" },
+      { category: "ai-video-tools", q: "edit", page: 2 },
+      { category: "not-a-category" },
+      { q: "ai", page: 3 },
+    ];
+    for (const c of cases) {
+      const query = normalizeToolsQuery(c);
+      expect(await reader.toolsPage(query), JSON.stringify(c)).toEqual(toolsPageOf(e, query));
+    }
+  });
+
+  it("normalises query input: trims, lower-cases, caps length and page range", () => {
+    expect(normalizeToolsQuery({ q: "  ChatGPT ", page: 0 })).toEqual({
+      q: "chatgpt",
+      category: "",
+      page: 1,
+    });
+    expect(normalizeToolsQuery({ q: "x".repeat(500), page: 10_000 }).q).toHaveLength(100);
+    expect(normalizeToolsQuery({ page: 10_000 }).page).toBe(1000);
+    expect(normalizeToolsQuery({ page: "abc" as any }).page).toBe(1);
+  });
+
+  // ---------------------------------------------------------------- privacy
+  it("drafts, review, archived, flagged tools and anything in an unpublished category never appear anywhere", async () => {
     db.raw.exec("UPDATE tools SET status = 'draft' WHERE slug = 'chatgpt'");
     db.raw.exec("UPDATE tools SET status = 'review' WHERE slug = 'midjourney'");
     db.raw.exec("UPDATE tools SET status = 'archived' WHERE slug = 'canva'");
     db.raw.exec("UPDATE tools SET needs_review = 1 WHERE slug = 'grammarly'");
     db.raw.exec("UPDATE categories SET status = 'draft' WHERE slug = 'ai-video-tools'");
-    const c = (await loadCatalogFromD1(db))!;
-    for (const s of ["chatgpt", "midjourney", "canva", "grammarly", ...flagged])
-      expect(c.bySlug.has(s as string)).toBe(false);
-    expect(c.categoryBySlug("ai-video-tools")).toBeUndefined();
-    expect(c.tools.some((t) => t.category === "AI Video Tools")).toBe(false);
-    const xml = buildSitemapXml(sitemapEntries(c));
-    expect(xml).not.toMatch(/\/tools\/chatgpt</);
-    expect(xml).not.toMatch(/ai-video-tools/);
-    expect(featuredFrom(c.tools).some((f) => f.slug === "chatgpt")).toBe(false);
+    setVersion("private-test");
+    const hidden = ["chatgpt", "midjourney", "canva", "grammarly", ...flagged];
+    const videoSlugs = slugs(jsonFull.toolsIn("AI Video Tools"));
+    const everything = JSON.stringify([
+      await reader.browse(),
+      await reader.summary(),
+      await reader.sitemap(),
+      ...(await Promise.all(
+        ["", "chatgpt", "midjourney", "canva", "grammarly", "video", "ai"].map((q) =>
+          reader.toolsPage(normalizeToolsQuery({ q })),
+        ),
+      )),
+      ...(await Promise.all(
+        ["claude", "jasper-ai", "copy-ai", "notion-ai", "figma"].map((s) => reader.toolPage(s)),
+      )),
+      ...(await Promise.all(expected().categories.map((c) => reader.categoryPage(c.slug)))),
+    ]);
+    for (const s of [...hidden, ...videoSlugs])
+      expect(everything.includes(`"slug":"${s}"`), s).toBe(false);
+    const sitemapSlugs = (await reader.sitemap()).toolSlugs;
+    const stillPublic = new Set([...hidden, ...videoSlugs]);
+    expect(sitemapSlugs).toEqual(
+      expected()
+        .indexableSlugs()
+        .filter((s) => !stillPublic.has(s)),
+    );
+    expect(everything.includes("ai-video-tools")).toBe(false);
+    for (const s of [...hidden, videoSlugs[0]!]) expect(await reader.toolPage(s)).toBeNull();
+    expect(await reader.categoryPage("ai-video-tools")).toBeNull();
+    expect(
+      (await reader.toolsPage(normalizeToolsQuery({ category: "ai-video-tools" }))).total,
+    ).toBe(0);
   });
 
-  it("an admin publish appears on the next read; unpublish and archive remove it again", async () => {
+  it("every tools query the reader issues carries the visibility rule", async () => {
+    await reader.summary();
+    await reader.browse();
+    await reader.sitemap();
+    await reader.toolsPage(normalizeToolsQuery({ q: "chat", category: "ai-writing-tools" }));
+    await reader.toolsPage(normalizeToolsQuery({ page: 2 }));
+    await reader.categoryPage("ai-writing-tools");
+    await reader.toolPage("chatgpt");
+    await reader.toolPage("no-such-tool");
+    const toolQueries = log.filter((l) => /\bFROM tools\b/.test(l.sql));
+    expect(toolQueries.length).toBeGreaterThan(8);
+    for (const l of toolQueries) expect(l.sql, l.sql).toContain(PUBLIC_TOOLS);
+  });
+
+  // ---------------------------------------------------------------- CPU-sensitive paths
+  const rowsFor = async (fn: () => Promise<unknown>) => {
+    log = [];
+    await fn();
+    return {
+      total: log.reduce((s, l) => s + l.rows, 0),
+      max: Math.max(0, ...log.map((l) => l.rows)),
+      log,
+    };
+  };
+
+  it("no public request reads more than a few hundred rows (never the 2,225-row catalogue)", async () => {
+    const e = expected();
+    const biggest = Math.max(...e.categories.map((c) => e.toolsIn(c.name).length));
+    expect(biggest).toBeLessThanOrEqual(230);
+    const budgets: [string, () => Promise<unknown>, number][] = [
+      ["summary", () => reader.summary(), 200],
+      ["browse (home, /categories)", () => reader.browse(), 700],
+      ["sitemap", () => reader.sitemap(), 100],
+      ["/tools page 1", () => reader.toolsPage(normalizeToolsQuery({})), 250],
+      ["/tools page 30", () => reader.toolsPage(normalizeToolsQuery({ page: 30 })), 250],
+      ["/tools search", () => reader.toolsPage(normalizeToolsQuery({ q: "ai" })), 250],
+      [
+        "category page (largest)",
+        () => reader.categoryPage("ai-education-learning-tools"),
+        biggest + 40,
+      ],
+      ["tool page (shared subcategory)", () => reader.toolPage("chatgpt"), 2 * biggest + 40],
+      [
+        "tool page (largest category)",
+        () => reader.toolPage(slugs(e.toolsIn("AI Education & Learning Tools"))[0]!),
+        2 * biggest + 40,
+      ],
+      ["unknown tool", () => reader.toolPage("no-such-tool"), 40],
+    ];
+    for (const [label, fn, budget] of budgets) {
+      resetVersionedCache(); // measure the cold (uncached) cost
+      const { total, max } = await rowsFor(fn);
+      expect(total, label).toBeLessThanOrEqual(budget);
+      expect(max, label).toBeLessThan(e.tools.length);
+    }
+  });
+
+  it("cached results cost one tiny version read until the catalogue version changes", async () => {
+    await reader.summary();
+    await reader.browse();
+    await reader.sitemap();
+    await reader.toolsPage(normalizeToolsQuery({}));
+    const warm = await rowsFor(async () => {
+      await reader.summary();
+      await reader.browse();
+      await reader.sitemap();
+      await reader.toolsPage(normalizeToolsQuery({}));
+    });
+    expect(
+      warm.log.every((l) => /key = 'catalog_version'|FROM categories/.test(l.sql) || l.rows <= 1),
+    ).toBe(true);
+    expect(warm.total).toBeLessThanOrEqual(12);
+    setVersion("v-next");
+    const cold = await rowsFor(() => reader.summary());
+    expect(cold.total).toBeGreaterThan(12);
+  });
+
+  // ---------------------------------------------------------------- cold start: tools.json only on the fallback path
+  it("cold start on D1 never loads tools.json; the fallback loads it lazily and still works", async () => {
+    let loaded = 0;
+    vi.resetModules();
+    vi.doMock("@/data/tools.json", () => {
+      loaded++;
+      return { default: data };
+    });
+    try {
+      const fresh = await import("@/lib/catalog/reader");
+      const env = await import("@/lib/db/env");
+      env.captureRuntimeEnv({ DB: db });
+      const r = await fresh.getReader();
+      expect(r.source).toBe("d1");
+      await r.summary();
+      await r.browse();
+      await r.sitemap();
+      await r.toolsPage(normalizeToolsQuery({ q: "chat" }));
+      await r.categoryPage("ai-writing-tools");
+      await r.toolPage("chatgpt");
+      expect(loaded).toBe(0);
+      env.captureRuntimeEnv({});
+      const fallback = await fresh.getReader();
+      expect(fallback.source).toBe("json");
+      expect((await fallback.summary()).toolCount).toBe(tools.length);
+      expect(loaded).toBe(1);
+    } finally {
+      vi.doUnmock("@/data/tools.json");
+      vi.resetModules();
+    }
+  });
+
+  it("falls back to tools.json only when no database is bound or nothing was imported", async () => {
+    captureRuntimeEnv({});
+    resetReader();
+    expect((await getReader()).source).toBe("json");
+    captureRuntimeEnv({ DB: createTestDb() });
+    resetReader();
+    expect((await getReader()).source).toBe("json");
+  });
+
+  // ---------------------------------------------------------------- Admin is the source of truth
+  it("an Admin publish appears on the next request everywhere; unpublish removes it again", async () => {
     const key = await makeKey("k1");
     const token = await signJwt(key, goodClaims(1_800_000_000));
     let tick = 0;
@@ -169,9 +425,8 @@ describe("D1 as the source of truth", () => {
       );
       return { status: res.status, json: await res.json() };
     };
-
-    const before = await getCatalog();
-    expect(before.source).toBe("d1");
+    const before = (await reader.summary()).toolCount;
+    await reader.browse(); // warm the caches, so the test proves they are invalidated
     const created = await admin("POST", "tools", {
       client_id: "00000000-0000-4000-8000-000000000123",
       slug: "brand-new-ai",
@@ -184,163 +439,66 @@ describe("D1 as the source of truth", () => {
       tagline: "Writes your drafts for you.",
     });
     expect(created.status).toBe(201);
-    expect((await getCatalog()).bySlug.has("brand-new-ai")).toBe(false); // a draft is private
-
+    expect(await reader.toolPage("brand-new-ai")).toBeNull(); // drafts are private
     const pub = await admin("POST", "tools/brand-new-ai/action", {
       action: "publish",
       updated_at: created.json.tool.updated_at,
     });
     expect(pub.status).toBe(200);
-    const after = await getCatalog();
-    const t = after.bySlug.get("brand-new-ai")!;
-    expect(t).toMatchObject({ category: "AI Writing Tools", categorySlug: "ai-writing-tools" });
-    expect(after.toolsIn("AI Writing Tools").some((x) => x.slug === "brand-new-ai")).toBe(true);
-    expect(after.contentOf(t, await loadToolCopy("brand-new-ai")).tagline).toBe(
-      "Writes your drafts for you.",
-    );
-    expect(after.tools.length).toBe(before.tools.length + 1);
-
+    const page = (await reader.toolPage("brand-new-ai")) as any;
+    expect(page.tool).toMatchObject({
+      category: "AI Writing Tools",
+      categorySlug: "ai-writing-tools",
+    });
+    expect(page.content.tagline).toBe("Writes your drafts for you.");
+    expect((await reader.summary()).toolCount).toBe(before + 1);
+    expect(slugs((await reader.categoryPage("ai-writing-tools"))!.tools)).toContain("brand-new-ai");
+    expect(slugs((await reader.toolsPage(normalizeToolsQuery({ q: "brand new" }))).items)).toEqual([
+      "brand-new-ai",
+    ]);
     const unpub = await admin("POST", "tools/brand-new-ai/action", {
       action: "unpublish",
       updated_at: pub.json.tool.updated_at,
     });
     expect(unpub.status).toBe(200);
-    expect((await getCatalog()).bySlug.has("brand-new-ai")).toBe(false);
+    expect(await reader.toolPage("brand-new-ai")).toBeNull();
+    expect((await reader.summary()).toolCount).toBe(before);
   });
 
-  it("caches between requests and reloads as soon as the catalogue version changes", async () => {
-    const spy = vi.spyOn(db, "prepare");
-    await getCatalog();
-    const first = spy.mock.calls.length;
-    await getCatalog();
-    expect(spy.mock.calls.length - first).toBe(1); // only the version check
-    db.raw.exec("UPDATE tools SET status = 'draft' WHERE slug = 'chatgpt'");
-    expect((await getCatalog()).bySlug.has("chatgpt")).toBe(true); // version unchanged: still cached
-    db.raw.exec("UPDATE meta SET value = 'v2' WHERE key = 'catalog_version'");
-    expect((await getCatalog()).bySlug.has("chatgpt")).toBe(false);
+  it("databases imported before the fix (template best-for/steps/tips stored on every listing) still match the JSON site", async () => {
+    // What the previous import wrote for curated rows: the PRIMARY listing's category guidance on every listing.
+    db.raw.exec(
+      `UPDATE tools SET best_for = 'Primary category audience', steps = '["Primary step"]', tips = '["Primary tip"]'
+        WHERE content_source = 'curated'`,
+    );
+    const json = createJsonReader();
+    for (const s of ["runway-ml-video", "chatgpt-e-commerce", "canva-social-media", "chatgpt"])
+      expect(await reader.toolPage(s), s).toEqual(await json.toolPage(s));
+    // Once an admin edits the tool, the stored guidance is theirs and is shown.
+    db.raw.exec("UPDATE tools SET content_source = 'admin' WHERE slug = 'runway-ml-video'");
+    const edited = (await reader.toolPage("runway-ml-video")) as any;
+    expect(edited.content.bestFor).toBe("Primary category audience");
+    expect(edited.content.steps).toEqual(["Primary step"]);
   });
 
-  it("never reloads on a timer: an unchanged version keeps the cached catalogue indefinitely", async () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    try {
-      await getCatalog();
-      const spy = vi.spyOn(db, "prepare");
-      vi.setSystemTime(Date.now() + 24 * 3600_000);
-      await getCatalog();
-      expect(spy.mock.calls.length).toBe(1); // only the version check, no reload
-    } finally {
-      vi.useRealTimers();
-    }
+  it("redirects a retired slug only to a public tool", async () => {
+    db.raw.exec(
+      "INSERT INTO tool_redirects (old_slug, tool_id) SELECT 'old-chatgpt', id FROM tools WHERE slug = 'chatgpt'",
+    );
+    expect(await reader.toolPage("old-chatgpt")).toEqual({ redirect: "chatgpt" });
+    db.raw.exec("UPDATE tools SET status = 'archived' WHERE slug = 'chatgpt'");
+    expect(await reader.toolPage("old-chatgpt")).toBeNull();
   });
 
-  it("concurrent requests share one reload instead of each loading the whole catalogue (Workers CPU limit)", async () => {
-    const spy = vi.spyOn(db, "prepare");
-    const results = await Promise.all(Array.from({ length: 8 }, () => getCatalog()));
-    const tableReads = spy.mock.calls.filter(([sql]) => /FROM tools t JOIN/.test(String(sql)));
-    expect(tableReads).toHaveLength(1);
-    expect(new Set(results).size).toBe(1);
-  });
-
-  /**
-   * Holds matching queries until the test releases them, so tests can force a completion order. The rows are read when
-   * the query runs (a snapshot), so a held reload of an older version really carries the older data.
-   */
-  const holdQueries = (rules: { match: RegExp; limit?: number }[]) => {
-    const prepare = db.prepare.bind(db);
-    const held = rules.map(() => [] as (() => void)[]);
-    vi.spyOn(db, "prepare").mockImplementation((sql: string) => {
-      const st: any = prepare(sql);
-      const i = rules.findIndex(
-        (r, k) => r.match.test(sql) && held[k]!.length < (r.limit ?? Infinity),
-      );
-      if (i < 0) return st;
-      let release!: () => void;
-      const gate = new Promise<void>((r) => (release = r));
-      held[i]!.push(release);
-      const hold = (fn: () => Promise<unknown>) => async () => {
-        const result = fn();
-        await gate;
-        return result;
-      };
-      return { ...st, all: hold(st.all), first: hold(st.first) };
+  // ---------------------------------------------------------------- D1 failures
+  it("on a D1 failure, cached results serve the last good D1 value; per-page reads fail instead of showing tools.json", async () => {
+    const good = await reader.summary();
+    vi.spyOn(db, "prepare").mockImplementation(() => {
+      throw new Error("D1 down");
     });
-    return held;
-  };
-  const CATALOGUE_READ = /FROM tools t JOIN/;
-  const VERSION_READ = /key = 'catalog_version'/;
-  const setVersion = (v: string) =>
-    db.raw.exec(`UPDATE meta SET value = '${v}' WHERE key = 'catalog_version'`);
-
-  it("race: a reload for V1 that finishes after the reload for V2 cannot overwrite the V2 cache", async () => {
-    setVersion("v1");
-    const [reads] = holdQueries([{ match: CATALOGUE_READ }]);
-    const p1 = getCatalog(); // 1. reload for V1 starts
-    await vi.waitFor(() => expect(reads).toHaveLength(1));
-    db.raw.exec("UPDATE tools SET status = 'archived' WHERE slug = 'chatgpt'");
-    setVersion("v2"); // 2. the version changes
-    const p2 = getCatalog(); // 3. reload for V2 starts
-    await vi.waitFor(() => expect(reads).toHaveLength(2));
-    reads![1]!(); // 4. V2 finishes first
-    const v2 = await p2;
-    expect(v2.bySlug.has("chatgpt")).toBe(false);
-    reads![0]!(); // 5. V1 finishes later
-    const v1 = await p1;
-    expect(v1.bySlug.has("chatgpt")).toBe(true); // V1's own caller still gets the V1 snapshot it asked for
-    const before = reads!.length;
-    expect(await getCatalog()).toBe(v2); // the cache still holds V2...
-    expect(reads).toHaveLength(before); // ...and serving it needed no reload
-  });
-
-  it("race: a request that read V1 before a V2 reload started joins that reload instead of starting an older one", async () => {
-    setVersion("v1");
-    const [versionReads, reads] = holdQueries([
-      { match: VERSION_READ, limit: 1 },
-      { match: CATALOGUE_READ },
-    ]);
-    const r1 = getCatalog(); // reads V1, held before it can act on it
-    await vi.waitFor(() => expect(versionReads).toHaveLength(1));
-    db.raw.exec("UPDATE tools SET status = 'archived' WHERE slug = 'chatgpt'");
-    setVersion("v2");
-    const r2 = getCatalog(); // reads V2 and starts the V2 reload
-    await vi.waitFor(() => expect(reads).toHaveLength(1));
-    versionReads![0]!(); // r1 now acts on its (older) V1 reading
-    await new Promise((r) => setTimeout(r, 10));
-    expect(reads).toHaveLength(1); // no second, older reload was started
-    reads![0]!();
-    const [c1, c2] = await Promise.all([r1, r2]);
-    expect(c1).toBe(c2);
-    expect(c2.bySlug.has("chatgpt")).toBe(false);
-    expect(await getCatalog()).toBe(c2);
-  });
-
-  it("resetCatalogCache: a reload started before the reset can never populate the cache afterwards", async () => {
-    const [reads] = holdQueries([{ match: CATALOGUE_READ }]);
-    const old = getCatalog();
-    await vi.waitFor(() => expect(reads).toHaveLength(1));
-    resetCatalogCache();
-    reads![0]!();
-    const stale = await old;
-    const fresh = getCatalog(); // must reload: the pre-reset result was not cached
-    await vi.waitFor(() => expect(reads).toHaveLength(2));
-    reads![1]!();
-    expect(await fresh).not.toBe(stale);
-    expect(await getCatalog()).toBe(await fresh);
-  });
-
-  it("a failed reload keeps the last good catalogue and does not block the next attempt", async () => {
-    const good = await getCatalog();
-    setVersion("v-next");
-    const prepare = db.prepare.bind(db);
-    const spy = vi.spyOn(db, "prepare").mockImplementation((sql: string) => {
-      if (CATALOGUE_READ.test(sql)) throw new Error("D1 hiccup");
-      return prepare(sql);
-    });
-    expect(await getCatalog()).toBe(good); // last good D1 catalogue, not tools.json
-    spy.mockRestore();
-    db.raw.exec("UPDATE tools SET status = 'archived' WHERE slug = 'chatgpt'");
-    const next = await getCatalog(); // the failed reload did not leave a stuck "loading" entry
-    expect(next).not.toBe(good);
-    expect(next.bySlug.has("chatgpt")).toBe(false);
+    expect(await reader.summary()).toEqual(good);
+    await expect(reader.toolPage("chatgpt")).rejects.toThrow("D1 down");
+    await expect(reader.categoryPage("ai-writing-tools")).rejects.toThrow("D1 down");
   });
 
   it("the import bumps the catalogue version, so a re-import is picked up without a timed refresh", () => {
@@ -348,76 +506,72 @@ describe("D1 as the source of truth", () => {
       db.raw.prepare("SELECT value FROM meta WHERE key = 'catalog_version'").get().value,
     ).toMatch(/^import-\d{4}-/);
   });
-
-  it("the catalogue list holds no copy; a tool page reads its copy only for a public tool", async () => {
-    const c = (await getCatalog())!;
-    expect(c.tools.every((t) => t.copy === null)).toBe(true);
-    db.raw.exec(
-      "UPDATE tools SET tagline = 'Draft secret' , status = 'draft' WHERE slug = 'jasper-ai'",
-    );
-    expect(await loadToolCopy("jasper-ai")).toBeNull();
-  });
-
-  it("redirects a retired slug only to a public tool", async () => {
-    db.raw.exec(
-      "INSERT INTO tool_redirects (old_slug, tool_id) SELECT 'old-chatgpt', id FROM tools WHERE slug = 'chatgpt'",
-    );
-    let c = (await loadCatalogFromD1(db))!;
-    expect(await redirectFor("old-chatgpt", c)).toBe("chatgpt");
-    expect(await redirectFor("nope", c)).toBeNull();
-    db.raw.exec("UPDATE tools SET status = 'archived' WHERE slug = 'chatgpt'");
-    c = (await loadCatalogFromD1(db))!;
-    expect(await redirectFor("old-chatgpt", c)).toBeNull();
-  });
-
-  it("falls back to tools.json only when there is no database or nothing was imported", async () => {
-    captureRuntimeEnv({});
-    resetCatalogCache();
-    expect((await getCatalog()).source).toBe("json");
-    const empty = createTestDb();
-    captureRuntimeEnv({ DB: empty });
-    resetCatalogCache();
-    expect((await getCatalog()).source).toBe("json");
-  });
-
-  it("keeps serving the last good D1 catalogue when D1 fails, instead of resurrecting unpublished JSON rows", async () => {
-    db.raw.exec("UPDATE tools SET status = 'archived' WHERE slug = 'chatgpt'");
-    const ok = await getCatalog();
-    expect(ok.bySlug.has("chatgpt")).toBe(false);
-    vi.spyOn(db, "prepare").mockImplementation(() => {
-      throw new Error("D1 down");
-    });
-    const c: Catalog = await getCatalog();
-    expect(c.source).toBe("d1");
-    expect(c.bySlug.has("chatgpt")).toBe(false);
-  });
 });
 
-describe("catalogue model", () => {
-  it("drops tools whose category is not public and honours stored slugs and indexing", () => {
-    const c = buildCatalog({
-      source: "d1",
-      categories: [{ name: "A", slug: "a", subcategories: ["S"] }],
-      tools: [
-        {
-          name: "One",
-          url: "https://one.example.com",
-          category: "A",
-          subcategory: "S",
-          slug: "custom-one",
-          indexing: "index",
-        },
-        {
-          name: "Two",
-          url: "https://two.example.com",
-          category: "Hidden",
-          subcategory: "",
-          slug: "two",
-          indexing: "index",
-        },
-      ],
-    });
-    expect(slugs(c.tools)).toEqual(["custom-one"]);
-    expect(c.indexableSlugs()).toEqual(["custom-one"]);
+describe("versioned cache: races between reloads", () => {
+  beforeEach(() => resetVersionedCache());
+  const deferred = <T>() => {
+    let resolve!: (v: T) => void;
+    let reject!: (e: unknown) => void;
+    const promise = new Promise<T>((res, rej) => ((resolve = res), (reject = rej)));
+    return { promise, resolve, reject };
+  };
+
+  it("a load for V1 that finishes after the load for V2 cannot overwrite the V2 value", async () => {
+    const v1 = deferred<string>();
+    const v2 = deferred<string>();
+    const t1 = takeTicket();
+    const p1 = cachedByVersion("k", "v1", t1, () => v1.promise); // 1. V1 starts
+    const t2 = takeTicket();
+    const p2 = cachedByVersion("k", "v2", t2, () => v2.promise); // 2-3. version changes, V2 starts
+    v2.resolve("V2"); // 4. V2 finishes first
+    expect(await p2).toBe("V2");
+    v1.resolve("V1"); // 5. V1 finishes later
+    expect(await p1).toBe("V1"); // its own caller still gets V1
+    const load = vi.fn(async () => "reloaded");
+    expect(await cachedByVersion("k", "v2", takeTicket(), load)).toBe("V2");
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it("a request that read V1 before a V2 load started joins that load instead of starting an older one", async () => {
+    const v2 = deferred<string>();
+    const t1 = takeTicket(); // read V1 first...
+    const t2 = takeTicket();
+    const p2 = cachedByVersion("k", "v2", t2, () => v2.promise);
+    const older = vi.fn(async () => "V1");
+    const p1 = cachedByVersion("k", "v1", t1, older); // ...but acts on it after V2's load started
+    expect(older).not.toHaveBeenCalled();
+    v2.resolve("V2");
+    expect(await p1).toBe("V2");
+    expect(await p2).toBe("V2");
+  });
+
+  it("concurrent requests for one version share a single load", async () => {
+    const load = vi.fn(async () => "value");
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => cachedByVersion("k", "v1", takeTicket(), load)),
+    );
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(new Set(results)).toEqual(new Set(["value"]));
+  });
+
+  it("reset: a load started before resetVersionedCache can never store its value", async () => {
+    const old = deferred<string>();
+    const p = cachedByVersion("k", "v1", takeTicket(), () => old.promise);
+    resetVersionedCache();
+    old.resolve("stale");
+    expect(await p).toBe("stale");
+    const load = vi.fn(async () => "fresh");
+    expect(await cachedByVersion("k", "v1", takeTicket(), load)).toBe("fresh");
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it("a failed load stores nothing and does not block the next attempt", async () => {
+    await expect(
+      cachedByVersion("k", "v1", takeTicket(), async () => {
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
+    expect(await cachedByVersion("k", "v1", takeTicket(), async () => "ok")).toBe("ok");
   });
 });

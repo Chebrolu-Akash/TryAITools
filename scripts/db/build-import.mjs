@@ -87,8 +87,10 @@ tools.forEach((t, i) => {
     const c = cur.content;
     curatedRows++;
     // Only fills a curated row that is still untouched by an admin (content_source = 'curated' AND tagline IS NULL).
+    // Only the tool-specific copy is stored: best-for, steps and tips come from each listing's own category template
+    // (src/lib/tool-content.ts), so a product listed in several categories gets the right guidance on every listing.
     curatedStmts.push(
-      `UPDATE tools SET tagline=${q(c.tagline)},overview=${q(c.overview)},best_for=${q(c.bestFor)},features=${j(c.features)},pros=${j(c.pros)},limits=${j(c.limits)},steps=${j(c.steps)},tips=${j(c.tips)} WHERE id=${q(keys[i])} AND content_source='curated' AND tagline IS NULL;`,
+      `UPDATE tools SET tagline=${q(c.tagline)},overview=${q(c.overview)},features=${j(c.features)},pros=${j(c.pros)},limits=${j(c.limits)} WHERE id=${q(keys[i])} AND content_source='curated' AND tagline IS NULL;`,
     );
   }
 });

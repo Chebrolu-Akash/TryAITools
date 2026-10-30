@@ -1,4 +1,4 @@
-import type { Catalog } from "@/lib/catalog/model";
+import type { SitemapData } from "@/lib/catalog/views";
 import { absoluteUrl } from "@/lib/site";
 
 export type SitemapEntry = {
@@ -19,14 +19,14 @@ const STATIC_PAGES: SitemapEntry[] = [
   { path: "/affiliate-disclosure", changefreq: "yearly", priority: 0.3 },
 ];
 
-export const sitemapEntries = (catalog: Catalog): SitemapEntry[] => [
+export const sitemapEntries = (data: SitemapData): SitemapEntry[] => [
   ...STATIC_PAGES,
-  ...catalog.categories.map((c): SitemapEntry => ({
-    path: `/categories/${c.slug}`,
+  ...data.categorySlugs.map((slug): SitemapEntry => ({
+    path: `/categories/${slug}`,
     changefreq: "weekly",
     priority: 0.8,
   })),
-  ...catalog.indexableSlugs().map((slug): SitemapEntry => ({
+  ...data.toolSlugs.map((slug): SitemapEntry => ({
     path: `/tools/${slug}`,
     changefreq: "monthly",
     priority: 0.6,

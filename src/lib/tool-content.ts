@@ -1,4 +1,5 @@
-import { shortName, type Tool } from "@/lib/tools";
+import type { Tool } from "@/lib/tools"; // type only: erased at build, so tools.json is not bundled with this module
+import { shortName } from "@/lib/tool-utils";
 
 export type ToolContent = {
   /** One short sentence for the hero. */
