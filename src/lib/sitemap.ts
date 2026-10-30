@@ -1,10 +1,14 @@
-import { indexableToolSlugs } from "@/lib/tool-pages";
-import { categories } from "@/lib/tools";
+import type { Catalog } from "@/lib/catalog/model";
 import { absoluteUrl } from "@/lib/site";
 
-export type SitemapEntry = { path: string; changefreq: "daily" | "weekly" | "monthly" | "yearly"; priority: number };
+export type SitemapEntry = {
+  path: string;
+  changefreq: "daily" | "weekly" | "monthly" | "yearly";
+  priority: number;
+};
 
-// Pages with fixed paths. Category pages are added from the data file so new categories appear automatically.
+// Pages with fixed paths. Category and tool pages come from the live catalogue, so published categories and indexable
+// tools appear automatically and unpublished ones drop out.
 const STATIC_PAGES: SitemapEntry[] = [
   { path: "/", changefreq: "daily", priority: 1.0 },
   { path: "/tools", changefreq: "daily", priority: 0.9 },
@@ -15,16 +19,29 @@ const STATIC_PAGES: SitemapEntry[] = [
   { path: "/affiliate-disclosure", changefreq: "yearly", priority: 0.3 },
 ];
 
-export const sitemapEntries = (): SitemapEntry[] => [
+export const sitemapEntries = (catalog: Catalog): SitemapEntry[] => [
   ...STATIC_PAGES,
-  ...categories.map((c): SitemapEntry => ({ path: `/categories/${c.slug}`, changefreq: "weekly", priority: 0.8 })),
-  ...indexableToolSlugs().map((slug): SitemapEntry => ({ path: `/tools/${slug}`, changefreq: "monthly", priority: 0.6 })),
+  ...catalog.categories.map((c): SitemapEntry => ({
+    path: `/categories/${c.slug}`,
+    changefreq: "weekly",
+    priority: 0.8,
+  })),
+  ...catalog.indexableSlugs().map((slug): SitemapEntry => ({
+    path: `/tools/${slug}`,
+    changefreq: "monthly",
+    priority: 0.6,
+  })),
 ];
 
 const escapeXml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 
-export const buildSitemapXml = (entries: SitemapEntry[] = sitemapEntries()): string =>
+export const buildSitemapXml = (entries: SitemapEntry[]): string =>
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
   entries
     .map(

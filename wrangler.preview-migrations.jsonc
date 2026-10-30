@@ -1,0 +1,11 @@
+// Used ONLY by `wrangler d1 migrations/execute` commands (see docs/preview-d1-isolation.md). Never deploy this file.
+{
+  "d1_databases": [
+    {
+      "binding": "PREVIEW_DB",
+      "database_name": "tryaitools-preview",
+      "database_id": "ef1942a9-2804-440c-95d1-ce50ad70f875",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

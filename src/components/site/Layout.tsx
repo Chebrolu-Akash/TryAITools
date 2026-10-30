@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { Menu, X } from "lucide-react";
-import { categories, shortName } from "@/lib/tools";
+import { useSiteSummary } from "@/lib/catalog/use-site";
+import { shortName } from "@/lib/tool-utils";
 
 const nav = [
   { to: "/", label: "Home" },
@@ -98,6 +99,7 @@ const company = [
 ] as const;
 
 export function Footer() {
+  const { categories } = useSiteSummary();
   return (
     <footer className="mt-24 border-t border-border bg-secondary">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-12">

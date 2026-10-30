@@ -11,15 +11,17 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
-import { Route as ToolsIndexRouteImport } from './routes/tools.index'
-import { Route as ToolsSlugRouteImport } from './routes/tools.$slug'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as ApiDbCheckRouteImport } from './routes/api.db-check'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AffiliateDisclosureRouteImport } from './routes/affiliate-disclosure'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as ApiDbCheckRouteImport } from './routes/api.db-check'
 import { Route as CategoriesIndexRouteImport } from './routes/categories.index'
 import { Route as CategoriesSlugRouteImport } from './routes/categories.$slug'
+import { Route as ToolsIndexRouteImport } from './routes/tools.index'
+import { Route as ToolsSlugRouteImport } from './routes/tools.$slug'
+import { Route as ApiAdminSplatRouteImport } from './routes/api.admin.$'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -31,14 +33,9 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ToolsIndexRoute = ToolsIndexRouteImport.update({
-  id: '/tools/',
-  path: '/tools/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ToolsSlugRoute = ToolsSlugRouteImport.update({
-  id: '/tools/$slug',
-  path: '/tools/$slug',
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AffiliateDisclosureRoute = AffiliateDisclosureRouteImport.update({
@@ -56,14 +53,14 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDbCheckRoute = ApiDbCheckRouteImport.update({
-  id: '/api/db-check',
-  path: '/api/db-check',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDbCheckRoute = ApiDbCheckRouteImport.update({
+  id: '/api/db-check',
+  path: '/api/db-check',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CategoriesIndexRoute = CategoriesIndexRouteImport.update({
@@ -76,78 +73,130 @@ const CategoriesSlugRoute = CategoriesSlugRouteImport.update({
   path: '/categories/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ToolsIndexRoute = ToolsIndexRouteImport.update({
+  id: '/tools/',
+  path: '/tools/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ToolsSlugRoute = ToolsSlugRouteImport.update({
+  id: '/tools/$slug',
+  path: '/tools/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminSplatRoute = ApiAdminSplatRouteImport.update({
+  id: '/api/admin/$',
+  path: '/api/admin/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/tools/$slug': typeof ToolsSlugRoute
-  '/tools/': typeof ToolsIndexRoute
+  '/admin': typeof AdminRoute
   '/affiliate-disclosure': typeof AffiliateDisclosureRoute
   '/privacy': typeof PrivacyRoute
-  '/terms': typeof TermsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/api/db-check': typeof ApiDbCheckRoute
   '/categories/$slug': typeof CategoriesSlugRoute
+  '/tools/$slug': typeof ToolsSlugRoute
   '/categories/': typeof CategoriesIndexRoute
+  '/tools/': typeof ToolsIndexRoute
+  '/api/admin/$': typeof ApiAdminSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/tools/$slug': typeof ToolsSlugRoute
-  '/tools': typeof ToolsIndexRoute
+  '/admin': typeof AdminRoute
   '/affiliate-disclosure': typeof AffiliateDisclosureRoute
   '/privacy': typeof PrivacyRoute
-  '/terms': typeof TermsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/api/db-check': typeof ApiDbCheckRoute
   '/categories/$slug': typeof CategoriesSlugRoute
+  '/tools/$slug': typeof ToolsSlugRoute
   '/categories': typeof CategoriesIndexRoute
+  '/tools': typeof ToolsIndexRoute
+  '/api/admin/$': typeof ApiAdminSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
-  '/tools/$slug': typeof ToolsSlugRoute
-  '/tools/': typeof ToolsIndexRoute
+  '/admin': typeof AdminRoute
   '/affiliate-disclosure': typeof AffiliateDisclosureRoute
   '/privacy': typeof PrivacyRoute
-  '/terms': typeof TermsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/api/db-check': typeof ApiDbCheckRoute
   '/categories/$slug': typeof CategoriesSlugRoute
+  '/tools/$slug': typeof ToolsSlugRoute
   '/categories/': typeof CategoriesIndexRoute
+  '/tools/': typeof ToolsIndexRoute
+  '/api/admin/$': typeof ApiAdminSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/tools/$slug' | '/tools/' | '/affiliate-disclosure' | '/privacy' | '/terms' | '/sitemap.xml' | '/api/db-check' | '/categories/$slug' | '/categories/'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/affiliate-disclosure'
+    | '/privacy'
+    | '/sitemap.xml'
+    | '/terms'
+    | '/api/db-check'
+    | '/categories/$slug'
+    | '/tools/$slug'
+    | '/categories/'
+    | '/tools/'
+    | '/api/admin/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/tools/$slug' | '/tools' | '/affiliate-disclosure' | '/privacy' | '/terms' | '/sitemap.xml' | '/api/db-check' | '/categories/$slug' | '/categories'
+  to:
+    | '/'
+    | '/about'
+    | '/admin'
+    | '/affiliate-disclosure'
+    | '/privacy'
+    | '/sitemap.xml'
+    | '/terms'
+    | '/api/db-check'
+    | '/categories/$slug'
+    | '/tools/$slug'
+    | '/categories'
+    | '/tools'
+    | '/api/admin/$'
   id:
     | '__root__'
     | '/'
     | '/about'
-    | '/tools/$slug'
-    | '/tools/'
+    | '/admin'
     | '/affiliate-disclosure'
     | '/privacy'
-    | '/terms' | '/sitemap.xml'
+    | '/sitemap.xml'
+    | '/terms'
     | '/api/db-check'
     | '/categories/$slug'
+    | '/tools/$slug'
     | '/categories/'
+    | '/tools/'
+    | '/api/admin/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
-  ToolsSlugRoute: typeof ToolsSlugRoute
-  ToolsIndexRoute: typeof ToolsIndexRoute
+  AdminRoute: typeof AdminRoute
   AffiliateDisclosureRoute: typeof AffiliateDisclosureRoute
   PrivacyRoute: typeof PrivacyRoute
-  TermsRoute: typeof TermsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   ApiDbCheckRoute: typeof ApiDbCheckRoute
   CategoriesSlugRoute: typeof CategoriesSlugRoute
+  ToolsSlugRoute: typeof ToolsSlugRoute
   CategoriesIndexRoute: typeof CategoriesIndexRoute
+  ToolsIndexRoute: typeof ToolsIndexRoute
+  ApiAdminSplatRoute: typeof ApiAdminSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -166,18 +215,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/tools/': {
-      id: '/tools/'
-      path: '/tools'
-      fullPath: '/tools/'
-      preLoaderRoute: typeof ToolsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tools/$slug': {
-      id: '/tools/$slug'
-      path: '/tools/$slug'
-      fullPath: '/tools/$slug'
-      preLoaderRoute: typeof ToolsSlugRouteImport
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/affiliate-disclosure': {
@@ -201,18 +243,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/db-check': {
-      id: '/api/db-check'
-      path: '/api/db-check'
-      fullPath: '/api/db-check'
-      preLoaderRoute: typeof ApiDbCheckRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/terms': {
       id: '/terms'
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/db-check': {
+      id: '/api/db-check'
+      path: '/api/db-check'
+      fullPath: '/api/db-check'
+      preLoaderRoute: typeof ApiDbCheckRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/categories/': {
@@ -229,21 +271,44 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CategoriesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tools/': {
+      id: '/tools/'
+      path: '/tools'
+      fullPath: '/tools/'
+      preLoaderRoute: typeof ToolsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tools/$slug': {
+      id: '/tools/$slug'
+      path: '/tools/$slug'
+      fullPath: '/tools/$slug'
+      preLoaderRoute: typeof ToolsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/$': {
+      id: '/api/admin/$'
+      path: '/api/admin/$'
+      fullPath: '/api/admin/$'
+      preLoaderRoute: typeof ApiAdminSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
-  ToolsSlugRoute: ToolsSlugRoute,
-  ToolsIndexRoute: ToolsIndexRoute,
+  AdminRoute: AdminRoute,
   AffiliateDisclosureRoute: AffiliateDisclosureRoute,
   PrivacyRoute: PrivacyRoute,
-  TermsRoute: TermsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   ApiDbCheckRoute: ApiDbCheckRoute,
   CategoriesSlugRoute: CategoriesSlugRoute,
+  ToolsSlugRoute: ToolsSlugRoute,
   CategoriesIndexRoute: CategoriesIndexRoute,
+  ToolsIndexRoute: ToolsIndexRoute,
+  ApiAdminSplatRoute: ApiAdminSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

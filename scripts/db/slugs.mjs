@@ -1,7 +1,13 @@
 // Mirrors the slug algorithm in src/lib/tool-pages.ts. A parity test
 // (src/test/db-import.test.ts) fails if the two ever diverge.
 export const slugify = (s) =>
-  s.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  s
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 
 const shortCategory = (categorySlug) => categorySlug.replace(/^ai-/, "").replace(/-tools$/, "");
 

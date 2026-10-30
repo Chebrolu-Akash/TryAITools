@@ -3,14 +3,21 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { Page } from "@/components/site/Layout";
 import { ToolCard } from "@/components/site/ToolCard";
+import { fetchToolsIndex } from "@/lib/catalog/api";
+import type { PublicTool } from "@/lib/catalog/model";
 import { pageHead } from "@/lib/seo";
-import { categories, shortName, tools } from "@/lib/tools";
+import { shortName } from "@/lib/tool-utils";
 
 export const Route = createFileRoute("/tools/")({
   validateSearch: (s: Record<string, unknown>): { q?: string } =>
     typeof s["q"] === "string" ? { q: s["q"] as string } : {},
+  loader: () => fetchToolsIndex(),
   head: () =>
-    pageHead({ title: "All AI Tools — Search & Filter | TryAITools", description: "Search and filter more than 2,000 AI tools across 15 categories.", path: "/tools" }),
+    pageHead({
+      title: "All AI Tools — Search & Filter | TryAITools",
+      description: "Search and filter more than 2,000 AI tools across 15 categories.",
+      path: "/tools",
+    }),
   component: ToolsPage,
 });
 
@@ -18,6 +25,22 @@ const PAGE = 48;
 
 function ToolsPage() {
   const { q: initial } = Route.useSearch();
+  const data = Route.useLoaderData();
+  const tools = useMemo(
+    () =>
+      data.rows.map(([slug, name, url, ci, subcategory]): PublicTool => {
+        const c = data.categories[ci];
+        return {
+          slug,
+          name,
+          url,
+          subcategory,
+          category: c?.name ?? "",
+          categorySlug: c?.slug ?? "",
+        };
+      }),
+    [data],
+  );
   const [q, setQ] = useState(initial ?? "");
   const [cat, setCat] = useState("");
   const [limit, setLimit] = useState(PAGE);
@@ -26,9 +49,12 @@ function ToolsPage() {
     return tools.filter(
       (t) =>
         (!cat || t.category === cat) &&
-        (!s || t.name.toLowerCase().includes(s) || t.subcategory.toLowerCase().includes(s) || t.url.includes(s)),
+        (!s ||
+          t.name.toLowerCase().includes(s) ||
+          t.subcategory.toLowerCase().includes(s) ||
+          t.url.includes(s)),
     );
-  }, [q, cat]);
+  }, [tools, q, cat]);
 
   return (
     <Page>
@@ -52,7 +78,10 @@ function ToolsPage() {
       </section>
       <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
         <div className="flex flex-wrap gap-2">
-          {[{ name: "", label: "All" }, ...categories.map((c) => ({ name: c.name, label: shortName(c.name) }))].map((c) => (
+          {[
+            { name: "", label: "All" },
+            ...data.categories.map((c) => ({ name: c.name, label: shortName(c.name) })),
+          ].map((c) => (
             <button
               key={c.label}
               onClick={() => {
@@ -60,7 +89,9 @@ function ToolsPage() {
                 setLimit(PAGE);
               }}
               className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
-                cat === c.name ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:border-primary/40"
+                cat === c.name
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card hover:border-primary/40"
               }`}
             >
               {c.label}
@@ -69,13 +100,18 @@ function ToolsPage() {
         </div>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {list.slice(0, limit).map((t) => (
-            <ToolCard key={t.id} tool={t} />
+            <ToolCard key={t.slug} tool={t} />
           ))}
         </div>
-        {list.length === 0 && <p className="py-20 text-center text-muted-foreground">No tools match your search.</p>}
+        {list.length === 0 && (
+          <p className="py-20 text-center text-muted-foreground">No tools match your search.</p>
+        )}
         {limit < list.length && (
           <div className="mt-10 text-center">
-            <button onClick={() => setLimit(limit + PAGE)} className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-soft">
+            <button
+              onClick={() => setLimit(limit + PAGE)}
+              className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-soft"
+            >
               Load more
             </button>
           </div>

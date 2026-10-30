@@ -12,17 +12,26 @@ export class DbWriteError extends Error {
  * is given, the exact number of affected rows). Admin APIs must use this so a failed or no-op
  * write can never be reported to the user as saved.
  */
-export async function dbWrite(db: D1DatabaseLike | null, sql: string, params: unknown[] = [], opts: { expectChanges?: number } = {}) {
+export async function dbWrite(
+  db: D1DatabaseLike | null,
+  sql: string,
+  params: unknown[] = [],
+  opts: { expectChanges?: number } = {},
+) {
   if (!db) throw new DbWriteError("database_unavailable");
   let res;
   try {
-    res = await db.prepare(sql).bind(...params).run();
+    res = await db
+      .prepare(sql)
+      .bind(...params)
+      .run();
   } catch (e) {
     console.error("D1 write failed", e);
     throw new DbWriteError("write_failed");
   }
   if (!res || res.success !== true) throw new DbWriteError("write_not_confirmed");
   const changes = res.meta?.changes ?? 0;
-  if (opts.expectChanges !== undefined && changes !== opts.expectChanges) throw new DbWriteError("unexpected_change_count");
+  if (opts.expectChanges !== undefined && changes !== opts.expectChanges)
+    throw new DbWriteError("unexpected_change_count");
   return { changes };
 }

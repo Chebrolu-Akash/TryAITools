@@ -32,3 +32,8 @@ dist-ssr
 *.sw?
 
 db/import/out/
+
+# Stage 3 helper output (never commit)
+wrangler.jsonc.bak-*
+wrangler.preview-migrations.jsonc.bak
+backup-*-preview-*.sql

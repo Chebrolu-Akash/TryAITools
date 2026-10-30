@@ -4,6 +4,9 @@ Nothing here touches production. Every script refuses any database whose name do
 `-preview` (see `scripts/db/guard.mjs`). The production database is not created, bound or written
 until it is explicitly approved as its own stage.
 
+> **Stage 3 correction (read first):** the binding steps below that write a top-level `d1_databases`, and the `node`/`npx` commands, are
+> superseded by `docs/preview-d1-isolation.md` (preview database under `previews.d1_databases`) and `scripts/db/preview-d1.mjs` (Bun).
+
 ## What exists
 
 | Path | Purpose |

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { LogoLoop, type LogoItem } from "@/components/site/LogoLoop";
-import { featuredAll, type FeaturedTool } from "@/lib/featured";
+import type { FeaturedTool } from "@/lib/featured";
 
 function Chip({ tool }: { tool: FeaturedTool }) {
   const [failed, setFailed] = useState(false);
@@ -25,12 +25,14 @@ function Chip({ tool }: { tool: FeaturedTool }) {
   );
 }
 
-const items: (LogoItem & { tool: FeaturedTool })[] = featuredAll.map((tool) => ({ node: null, tool }));
+
 const renderChip = (item: LogoItem) => <Chip tool={(item as LogoItem & { tool: FeaturedTool }).tool} />;
 
 const EDGE_FADE = { maskImage: "linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent)", WebkitMaskImage: "linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent)" } as const;
 
-export function ToolLogoLoops() {
+export function ToolLogoLoops({ featured }: { featured: FeaturedTool[] }) {
+  const items: (LogoItem & { tool: FeaturedTool })[] = featured.map((tool) => ({ node: null, tool }));
+  if (items.length === 0) return null;
   return (
     <div className="mx-auto mt-14 max-w-5xl px-4 sm:px-6">
       <p className="mb-6 text-center text-base font-semibold text-white sm:text-lg">Explore the AI tools people use every day</p>

@@ -12,9 +12,12 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:build-import": "node scripts/db/build-import.mjs --env preview",
-    "db:verify-local": "node scripts/db/build-import.mjs --env local && node scripts/db/verify-local.mjs",
-    "db:check-config": "node scripts/db/check-generated-config.mjs"
+    "db:build-import": "bun scripts/db/build-import.mjs --env preview",
+    "db:verify-local": "bun scripts/db/build-import.mjs --env local && bun scripts/db/verify-local.mjs",
+    "db:check-config": "bun scripts/db/check-generated-config.mjs",
+    "db:preview": "bun scripts/db/preview-d1.mjs",
+    "admin:setup": "bun scripts/db/local-admin.mjs setup",
+    "admin:dev": "bun scripts/db/local-admin.mjs start"
   },
   "overrides": {
     "rolldown": "1.2.1"

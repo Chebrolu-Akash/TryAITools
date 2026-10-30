@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Page } from "@/components/site/Layout";
 import { pageHead } from "@/lib/seo";
-import { categories, tools } from "@/lib/tools";
+import { useSiteSummary } from "@/lib/catalog/use-site";
 
 export const Route = createFileRoute("/about")({
   head: () =>
     pageHead({ title: "About TryAITools", description: "TryAITools helps you discover the right AI tool for every task. Learn about our mission and how the directory is organized.", path: "/about" }),
-  component: () => (
+  component: function AboutPage() {
+    const { toolCount, categories } = useSiteSummary();
+    return (
     <Page>
       <section className="bg-hero pb-16 pt-16">
         <div className="mx-auto max-w-3xl px-4 text-center">
@@ -18,7 +20,7 @@ export const Route = createFileRoute("/about")({
       </section>
       <div className="mx-auto grid max-w-4xl gap-5 px-4 pt-12 sm:grid-cols-3">
         {[
-          [`${tools.length.toLocaleString()}+`, "AI tools listed"],
+          [`${toolCount.toLocaleString()}+`, "AI tools listed"],
           [String(categories.length), "Categories"],
           ["Free", "To browse, always"],
         ].map(([n, l]) => (
@@ -34,5 +36,6 @@ export const Route = createFileRoute("/about")({
         </Link>
       </div>
     </Page>
-  ),
+    );
+  },
 });

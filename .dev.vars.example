@@ -1,0 +1,13 @@
+# Copy to `.dev.vars` (git-ignored) for LOCAL development only. Never commit real values.
+
+# --- Local admin (bun run admin:dev -> http://127.0.0.1:8787/admin) ---------------------------------------------
+# Signs this owner in WITHOUT Cloudflare Access, but only for requests to localhost/127.0.0.1 that did not pass
+# through Cloudflare. Must also be listed in OWNER_EMAILS. NEVER set ADMIN_LOCAL_DEV_EMAIL as a Worker variable or
+# secret on any Cloudflare environment (preview or production).
+OWNER_EMAILS=your-own-email@example.com
+ADMIN_LOCAL_DEV_EMAIL=your-own-email@example.com
+
+# --- Real Cloudflare Access verification (what preview/production use) ----------------------------------------
+# Only needed locally if you want to test with a real Access token instead of the local sign-in above.
+# ACCESS_TEAM_DOMAIN=your-team-name.cloudflareaccess.com
+# ACCESS_AUD=paste-the-64-character-application-audience-tag-here

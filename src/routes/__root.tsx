@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportError } from "../lib/error-reporting";
 import { OG_IMAGE, SITE_DESCRIPTION, SITE_NAME } from "../lib/site";
 import { GA_INLINE_SCRIPT, GA_SCRIPT_SRC, usePageViewTracking } from "../lib/analytics";
+import { fetchSiteSummary } from "../lib/catalog/api";
 
 function NotFoundComponent() {
   return (
@@ -76,6 +77,9 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  // Tool count and category links for the shared layout, read from the live catalogue.
+  loader: () => fetchSiteSummary(),
+  staleTime: 60_000,
   head: () => ({
     meta: [
       { charSet: "utf-8" },

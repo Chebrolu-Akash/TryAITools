@@ -1,44 +1,43 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, Check, ChevronRight, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { CopyPrompt } from "@/components/site/CopyPrompt";
 import { Page } from "@/components/site/Layout";
-import { alternativesFor, isIndexable, relatedCategories, relatedTools, slugOfTool, toolBySlugName } from "@/lib/tool-pages";
-import { contentFor } from "@/lib/tool-content";
+import { fetchToolPage } from "@/lib/catalog/api";
+import type { PublicTool } from "@/lib/catalog/model";
 import { pageHead } from "@/lib/seo";
 import { SITE_NAME, absoluteUrl } from "@/lib/site";
-import { domainOf, logoOf, shortName, slugOf, type Tool } from "@/lib/tools";
+import { domainOf, logoOf, shortName } from "@/lib/tool-utils";
 
-const cleanName = (t: Tool) => t.name.replace(/ \(.+\)$/, "");
+const cleanName = (t: Pick<PublicTool, "name">) => t.name.replace(/ \(.+\)$/, "");
 const jsonLd = (data: unknown) => JSON.stringify(data).replace(/</g, "\\u003c");
 const clip = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s);
 
 export const Route = createFileRoute("/tools/$slug")({
-  loader: ({ params }) => {
-    const tool = toolBySlugName(params.slug);
-    if (!tool) throw notFound();
-    return { slug: params.slug, tool };
-  },
+  // Unknown, unpublished, archived and flagged tools all 404 here (the server only ever sees public rows).
+  loader: ({ params }) => fetchToolPage({ data: params.slug }),
   head: ({ loaderData, params }) => {
     const tool = loaderData?.tool;
     const path = `/tools/${params.slug}`;
-    if (!tool) return pageHead({ title: `Tool not found | ${SITE_NAME}`, description: "This tool page doesn't exist.", path, noindex: true });
+    if (!loaderData || !tool) return pageHead({ title: `Tool not found | ${SITE_NAME}`, description: "This tool page doesn't exist.", path, noindex: true });
     const name = cleanName(tool);
-    const c = contentFor(tool);
+    const c = loaderData.content;
     const sub = (tool.subcategory || tool.category).replace(/^AI /, "").replace(/ Tools$/, "");
-    const indexable = isIndexable(tool);
-    const raw = c.curated
-      ? [c.tagline, c.overview].filter(Boolean).join(" ")
-      : `${name} in ${sub}: a starter prompt, how-to steps and alternatives on ${SITE_NAME}.`;
+    const raw =
+      loaderData.seoDescription ??
+      (c.curated
+        ? [c.tagline, c.overview].filter(Boolean).join(" ")
+        : `${name} in ${sub}: a starter prompt, how-to steps and alternatives on ${SITE_NAME}.`);
     const description = raw.length > 158 ? `${raw.slice(0, 155).trimEnd()}…` : raw;
-    const base = pageHead({ title: `${name}: ${sub} Tool, Prompt & Alternatives | ${SITE_NAME}`, description, path, noindex: !indexable });
+    const title = loaderData.seoTitle ? `${loaderData.seoTitle} | ${SITE_NAME}` : `${name}: ${sub} Tool, Prompt & Alternatives | ${SITE_NAME}`;
+    const base = pageHead({ title, description, path, noindex: !loaderData.indexable });
     const graph: unknown[] = [
       {
         "@type": "BreadcrumbList",
         itemListElement: [
           { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
           { "@type": "ListItem", position: 2, name: "AI Tools", item: absoluteUrl("/tools") },
-          { "@type": "ListItem", position: 3, name: shortName(tool.category), item: absoluteUrl(`/categories/${slugOf(tool.category)}`) },
+          { "@type": "ListItem", position: 3, name: shortName(tool.category), item: absoluteUrl(`/categories/${tool.categorySlug}`) },
           { "@type": "ListItem", position: 4, name, item: absoluteUrl(path) },
         ],
       },
@@ -61,7 +60,7 @@ export const Route = createFileRoute("/tools/$slug")({
   component: ToolPage,
 });
 
-function Logo({ tool, size }: { tool: Tool; size: number }) {
+function Logo({ tool, size }: { tool: PublicTool; size: number }) {
   const [failed, setFailed] = useState(false);
   const src = logoOf(tool.url, 128);
   const inner = Math.round(size * 0.6);
@@ -99,14 +98,10 @@ function Bullets({ items, icon }: { items: string[]; icon: "check" | "x" | "good
 }
 
 function ToolPage() {
-  const { tool } = Route.useLoaderData();
+  const { tool, content: c, alternatives: alts, related: more, relatedCategories: cats } = Route.useLoaderData();
   const name = cleanName(tool);
-  const c = contentFor(tool);
-  const alts = alternativesFor(tool, 6);
-  const more = relatedTools(tool, alts, 4);
-  const cats = relatedCategories(tool.category, 4);
   const domain = domainOf(tool.url);
-  const catSlug = slugOf(tool.category);
+  const catSlug = tool.categorySlug;
   const showAlts = alts.length >= 3;
   const hasDetails = Boolean(c.features?.length || c.pros?.length || c.limits?.length);
 
@@ -196,8 +191,8 @@ function ToolPage() {
           <Section title={`${name} alternatives`}>
             <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {alts.map((a) => (
-                <li key={slugOfTool(a)}>
-                  <Link to="/tools/$slug" params={{ slug: slugOfTool(a) }} className="group flex items-center gap-3 rounded-2xl border border-primary/10 bg-background p-3 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <li key={a.slug}>
+                  <Link to="/tools/$slug" params={{ slug: a.slug }} className="group flex items-center gap-3 rounded-2xl border border-primary/10 bg-background p-3 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     <Logo tool={a} size={44} />
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-bold group-hover:text-primary">{cleanName(a)}</span>
@@ -216,7 +211,7 @@ function ToolPage() {
               <h3 className="text-sm font-bold text-foreground">Popular in {shortName(tool.category)}</h3>
               <ul className="mt-2 flex flex-wrap gap-2">
                 {more.map((t) => (
-                  <li key={slugOfTool(t)}><Link to="/tools/$slug" params={{ slug: slugOfTool(t) }} className="rounded-full border border-primary/15 bg-background px-4 py-1.5 text-sm font-semibold hover:border-primary/40 hover:text-primary">{cleanName(t)}</Link></li>
+                  <li key={t.slug}><Link to="/tools/$slug" params={{ slug: t.slug }} className="rounded-full border border-primary/15 bg-background px-4 py-1.5 text-sm font-semibold hover:border-primary/40 hover:text-primary">{cleanName(t)}</Link></li>
                 ))}
               </ul>
             </>

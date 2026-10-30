@@ -3,7 +3,9 @@
 export const PREVIEW_NAME = /^[a-z0-9][a-z0-9-]*-preview$/;
 export function assertPreviewDb(name) {
   if (typeof name !== "string" || !PREVIEW_NAME.test(name)) {
-    console.error(`Refusing to run: database "${name}" is not a preview database (name must end in "-preview", e.g. tryaitools-preview).`);
+    console.error(
+      `Refusing to run: database "${name}" is not a preview database (name must end in "-preview", e.g. tryaitools-preview).`,
+    );
     process.exit(2);
   }
   if (/prod/i.test(name)) {

@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
 import { useState } from "react";
-import { slugOfTool } from "@/lib/tool-pages";
-import { domainOf, logoOf, shortName, slugOf, type Tool } from "@/lib/tools";
+import type { PublicTool } from "@/lib/catalog/model";
+import { domainOf, logoOf, shortName } from "@/lib/tool-utils";
 
-export function ToolCard({ tool, showCategory = true }: { tool: Tool; showCategory?: boolean }) {
+export function ToolCard({ tool, showCategory = true }: { tool: PublicTool; showCategory?: boolean }) {
   const [err, setErr] = useState(false);
   const logo = logoOf(tool.url);
   return (
@@ -18,7 +18,7 @@ export function ToolCard({ tool, showCategory = true }: { tool: Tool; showCatego
           )}
         </div>
         <div className="min-w-0">
-          <h3 className="truncate font-semibold"><Link to="/tools/$slug" params={{ slug: slugOfTool(tool) }} className="hover:text-primary">{tool.name}</Link></h3>
+          <h3 className="truncate font-semibold"><Link to="/tools/$slug" params={{ slug: tool.slug }} className="hover:text-primary">{tool.name}</Link></h3>
           <p className="truncate text-xs text-muted-foreground">{domainOf(tool.url)}</p>
         </div>
       </div>
@@ -26,7 +26,7 @@ export function ToolCard({ tool, showCategory = true }: { tool: Tool; showCatego
         {showCategory && (
           <Link
             to="/categories/$slug"
-            params={{ slug: slugOf(tool.category) }}
+            params={{ slug: tool.categorySlug }}
             className="rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground"
           >
             {shortName(tool.category)}
@@ -39,7 +39,7 @@ export function ToolCard({ tool, showCategory = true }: { tool: Tool; showCatego
       <div className="mt-5 flex items-center gap-2">
         <Link
           to="/tools/$slug"
-          params={{ slug: slugOfTool(tool) }}
+          params={{ slug: tool.slug }}
           className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-primary/30 py-2 text-sm font-semibold text-primary transition group-hover:bg-primary group-hover:text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           View Details

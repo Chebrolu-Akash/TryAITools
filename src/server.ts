@@ -1,7 +1,8 @@
 import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
-import { captureRuntimeEnv } from "./lib/db/env";
+import { adminPageHeaders, guardAdminPage, isAdminPagePath } from "./lib/admin/guard";
+import { captureRuntimeEnv, getRuntimeEnv } from "./lib/db/env";
 import { renderErrorPage } from "./lib/error-page";
 import { withSecurityHeaders } from "./lib/security-headers";
 
@@ -50,9 +51,20 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       captureRuntimeEnv(env);
+      const isAdminPage = isAdminPagePath(new URL(request.url).pathname);
+      if (isAdminPage) {
+        const denied = await guardAdminPage(request, await getRuntimeEnv());
+        if (denied) return withSecurityHeaders(denied);
+      }
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return withSecurityHeaders(await normalizeCatastrophicSsrResponse(response));
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+      if (isAdminPage) {
+        const guarded = new Response(normalized.body, normalized);
+        for (const [k, v] of Object.entries(adminPageHeaders)) guarded.headers.set(k, v);
+        return withSecurityHeaders(guarded);
+      }
+      return withSecurityHeaders(normalized);
     } catch (error) {
       console.error(error);
       return withSecurityHeaders(

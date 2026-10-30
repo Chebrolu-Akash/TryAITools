@@ -37,6 +37,7 @@ export function usePageViewTracking() {
       const path = window.location.pathname + window.location.search; // ignore #hash jumps
       if (path === lastPath.current) return; // de-duplicate
       lastPath.current = path;
+      if (window.location.pathname.startsWith("/admin")) return; // admin screens are not site traffic
       // Let the router commit the new <title> before reading document.title.
       window.setTimeout(sendPageView, 0);
     };

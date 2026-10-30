@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Page } from "@/components/site/Layout";
 import { CategoryBrowser } from "@/components/site/CategoryBrowser";
 import { Hero } from "@/components/site/Hero";
+import { fetchBrowse } from "@/lib/catalog/api";
 import { pageHead } from "@/lib/seo";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -14,6 +15,7 @@ const websiteJsonLd = {
 };
 
 export const Route = createFileRoute("/")({
+  loader: () => fetchBrowse(),
   head: () => ({
     ...pageHead({
       title: "TryAITools — Discover 2,000+ AI Tools by Category",
@@ -22,11 +24,16 @@ export const Route = createFileRoute("/")({
     }),
     scripts: [{ type: "application/ld+json", children: JSON.stringify(websiteJsonLd) }],
   }),
-  component: () => (
-    <Page flush>
-      <Hero />
-      <CategoryBrowser heading="h2" />
-    </Page>
-  ),
+  component: HomePage,
 });
+
+function HomePage() {
+  const { toolCount, categories, featured } = Route.useLoaderData();
+  return (
+    <Page flush>
+      <Hero featured={featured} />
+      <CategoryBrowser heading="h2" toolCount={toolCount} categories={categories} />
+    </Page>
+  );
+}
 

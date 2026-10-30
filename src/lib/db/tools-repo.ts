@@ -13,7 +13,9 @@ export async function loadTools(db: D1DatabaseLike | null): Promise<ToolsResult>
   if (db) {
     try {
       const { results } = await db
-        .prepare("SELECT t.id AS id, t.name AS name, COALESCE(t.url,'') AS url, c.name AS category, COALESCE(t.subcategory,'') AS subcategory FROM tools t JOIN categories c ON c.id = t.category_id WHERE t.status = 'published' ORDER BY t.sort_order")
+        .prepare(
+          "SELECT t.id AS id, t.name AS name, COALESCE(t.url,'') AS url, c.name AS category, COALESCE(t.subcategory,'') AS subcategory FROM tools t JOIN categories c ON c.id = t.category_id WHERE t.status = 'published' ORDER BY t.sort_order",
+        )
         .all<Tool>();
       if (Array.isArray(results) && results.length > 0) return { source: "d1", tools: results };
     } catch (e) {

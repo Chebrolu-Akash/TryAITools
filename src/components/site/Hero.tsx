@@ -3,11 +3,13 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Search } from "lucide-react";
 import { HeroBackground } from "@/components/site/HeroBackground";
 import { ToolLogoLoops } from "@/components/site/ToolLogoLoops";
-import { categories, tools } from "@/lib/tools";
+import type { FeaturedTool } from "@/lib/featured";
+import { useSiteSummary } from "@/lib/catalog/use-site";
 
 const popular = ["ChatGPT", "Midjourney", "Cursor", "ElevenLabs", "Notion AI"];
 
-export function Hero() {
+export function Hero({ featured }: { featured: FeaturedTool[] }) {
+  const { toolCount, categories } = useSiteSummary();
   const [q, setQ] = useState("");
   const navigate = useNavigate();
 
@@ -22,14 +24,14 @@ export function Hero() {
       <HeroBackground />
       <div className="relative mx-auto max-w-4xl px-4 pb-0 pt-28 text-center sm:px-6 sm:pt-28">
         <p className="mx-auto inline-flex items-center gap-2 rounded-full border border-primary/20 bg-background/70 px-4 py-1.5 text-xs font-semibold text-primary">
-          {tools.length.toLocaleString()} tools · {categories.length} categories · updated weekly
+          {toolCount.toLocaleString()} tools · {categories.length} categories · updated weekly
         </p>
         <h1 className="mt-6 font-display text-4xl font-bold leading-[1.08] tracking-tight sm:text-6xl">
           Find the right AI tool
           <span className="block text-primary">for every task</span>
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg">
-          Search {tools.length.toLocaleString()} hand-picked tools for writing, images, video, code and everything in between — then browse them by category.
+          Search {toolCount.toLocaleString()} hand-picked tools for writing, images, video, code and everything in between — then browse them by category.
         </p>
 
         <form onSubmit={submit} className="mx-auto mt-8 flex max-w-xl items-center gap-2 rounded-full bg-background p-2 shadow-soft ring-1 ring-primary/15">
@@ -56,7 +58,7 @@ export function Hero() {
         </p>
       </div>
       <div className="relative pb-12 sm:pb-14">
-        <ToolLogoLoops />
+        <ToolLogoLoops featured={featured} />
       </div>
     </section>
   );
