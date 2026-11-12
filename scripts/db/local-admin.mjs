@@ -137,13 +137,27 @@ if (cmd === "setup") {
   const env = {
     DB: { type: "d1", name: "tryaitools-local", id: "tryaitools-local" },
     ASSETS: { type: "assets" },
+    // Uploaded images: a local Miniflare bucket persisted next to the local database (never a remote bucket).
+    MEDIA: { type: "r2", name: "tryaitools-media-local" },
   };
-  for (const k of ["OWNER_EMAILS", "ADMIN_LOCAL_DEV_EMAIL", "ACCESS_TEAM_DOMAIN", "ACCESS_AUD"])
+  for (const k of [
+    "OWNER_EMAILS",
+    "ADMIN_LOCAL_DEV_EMAIL",
+    "ACCESS_TEAM_DOMAIN",
+    "ACCESS_AUD",
+    // AI News (optional): without the key, news is collected but not summarised.
+    "GEMINI_API_KEY",
+    "NEWS_MODEL",
+    "NEWS_MAX_SOURCES_PER_RUN",
+    "NEWS_MAX_SUMMARIES_PER_RUN",
+  ])
     if (vars[k]) env[k] = { type: "text", value: vars[k] };
   const mf = new Miniflare({
     host: "127.0.0.1",
     port: Number(PORT),
     log: new Log(LogLevel.INFO),
+    // Lets http://127.0.0.1:8787/cdn-cgi/local/scheduled run the AI News cron locally (Miniflare only).
+    unsafeTriggerHandlers: true,
     resourcePersistencePath: resolve(PERSIST, "v3"), // the layout `wrangler d1 ... --persist-to` writes
     workers: [
       {
@@ -153,7 +167,14 @@ if (cmd === "setup") {
           compatibilityFlags: cfg.compatibility_flags ?? [],
           manifest: { mainModule: cfg.main, modulesRoot: serverDir, modules },
           env,
-          assets: { directory: resolve(".output/public"), hasUserWorker: true },
+          assets: {
+            directory: resolve(".output/public"),
+            hasUserWorker: true,
+            // Mirrors the deployed config: with a static build the gate (main = gate.mjs) runs first for page routes.
+            ...(cfg.assets?.run_worker_first
+              ? { runWorkerFirst: cfg.assets.run_worker_first }
+              : {}),
+          },
         },
       },
     ],

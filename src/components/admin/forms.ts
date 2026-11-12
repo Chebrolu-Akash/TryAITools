@@ -1,5 +1,7 @@
 // Pure helpers that convert between API records and editable form state. No side effects, so the
 // payloads they build can be validated against the server's own schemas in tests.
+import { mediaUrl } from "@/lib/media";
+import { readPricingPlans, type PricingPlans } from "@/lib/pricing-plans";
 
 export const linesToList = (s: string): string[] =>
   s
@@ -57,6 +59,12 @@ export type ToolForm = {
   platformsText: string;
   pricing_note: string;
   pricing_source: string;
+  /** "" = not recorded */
+  pricing_model: string;
+  /** detailed plans for the public page; null = none */
+  pricing_plans: PricingPlans | null;
+  /** YYYY-MM-DD, "" = not recorded */
+  pricing_checked_at: string;
   seo_title: string;
   seo_description: string;
   canonical_url: string;
@@ -84,6 +92,9 @@ export const emptyToolForm = (category_id = ""): ToolForm => ({
   platformsText: "",
   pricing_note: "",
   pricing_source: "",
+  pricing_model: "",
+  pricing_plans: null,
+  pricing_checked_at: "",
   seo_title: "",
   seo_description: "",
   canonical_url: "",
@@ -112,6 +123,9 @@ export function toolFormFromApi(t: Record<string, unknown>): ToolForm {
     platformsText: listToCsv(t.platforms),
     pricing_note: str(t.pricing_note),
     pricing_source: str(t.pricing_source),
+    pricing_model: str(t.pricing_model),
+    pricing_plans: readPricingPlans(t["pricing_plans"]),
+    pricing_checked_at: str(t["pricing_checked_at"]),
     seo_title: str(t.seo_title),
     seo_description: str(t.seo_description),
     canonical_url: str(t.canonical_url),
@@ -140,6 +154,9 @@ export function toolPayload(f: ToolForm) {
     tips: linesToList(f.tipsText),
     pricing_note: f.pricing_note,
     pricing_source: f.pricing_source,
+    pricing_model: f.pricing_model || null,
+    pricing_plans: f.pricing_plans?.groups.length ? f.pricing_plans : null,
+    pricing_checked_at: f.pricing_checked_at || null,
     platforms: csvToList(f.platformsText),
     seo_title: f.seo_title,
     seo_description: f.seo_description,
@@ -209,6 +226,8 @@ export type PostForm = {
   seo_title: string;
   seo_description: string;
   canonical_url: string;
+  cover: { id: string; url: string } | null;
+  cover_alt: string;
 };
 export const emptyPostForm = (): PostForm => ({
   slug: "",
@@ -220,6 +239,8 @@ export const emptyPostForm = (): PostForm => ({
   seo_title: "",
   seo_description: "",
   canonical_url: "",
+  cover: null,
+  cover_alt: "",
 });
 export const postFormFromApi = (p: Record<string, unknown>): PostForm => ({
   slug: str(p.slug),
@@ -231,6 +252,11 @@ export const postFormFromApi = (p: Record<string, unknown>): PostForm => ({
   seo_title: str(p.seo_title),
   seo_description: str(p.seo_description),
   canonical_url: str(p.canonical_url),
+  cover: (() => {
+    const url = mediaUrl(p.cover_image_id, p.cover_mime);
+    return url ? { id: String(p.cover_image_id), url } : null;
+  })(),
+  cover_alt: str(p.cover_alt),
 });
 export const postPayload = (f: PostForm) => ({
   title: f.title,
@@ -241,6 +267,8 @@ export const postPayload = (f: PostForm) => ({
   seo_title: f.seo_title,
   seo_description: f.seo_description,
   canonical_url: f.canonical_url,
+  cover_image_id: f.cover?.id ?? null,
+  cover_alt: f.cover_alt,
 });
 
 export const isDirty = (a: unknown, b: unknown) => JSON.stringify(a) !== JSON.stringify(b);

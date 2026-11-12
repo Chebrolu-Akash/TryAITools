@@ -1,15 +1,38 @@
 import { useEffect, useRef, useState, type ComponentType } from "react";
-import { FileText, FolderTree, LayoutDashboard, LogOut, Menu, Wrench, X } from "lucide-react";
+import {
+  BookOpen,
+  GraduationCap,
+  Cpu,
+  FileText,
+  FolderTree,
+  LayoutDashboard,
+  LogOut,
+  Megaphone,
+  Menu,
+  Newspaper,
+  Wrench,
+  X,
+} from "lucide-react";
 import { AdminApiError, api } from "./client";
 import { BlogList, PostEditor } from "./BlogView";
 import { CategoriesView } from "./CategoriesView";
 import { Dashboard } from "./Dashboard";
+import { NewsView } from "./NewsView";
+import { SectionEditor, SectionList } from "./SectionsView";
 import { ToolEditor } from "./ToolEditor";
 import { ToolsList } from "./ToolsList";
 import { Banner, DirtyProvider, errorMessage, ToastProvider, useAsync } from "./ui";
 
 export type AdminSearch = {
-  view?: "tools" | "categories" | "blog";
+  view?:
+    | "tools"
+    | "categories"
+    | "blog"
+    | "courses"
+    | "tutorials"
+    | "gadgets"
+    | "guest-articles"
+    | "news";
   slug?: string;
   new?: "1";
   status?: string;
@@ -26,7 +49,12 @@ const NAV: {
   { view: undefined, label: "Dashboard", icon: LayoutDashboard },
   { view: "tools", label: "Tools", icon: Wrench },
   { view: "categories", label: "Categories", icon: FolderTree },
+  { view: "courses", label: "Courses & books", icon: BookOpen },
+  { view: "tutorials", label: "Tutorials", icon: GraduationCap },
+  { view: "gadgets", label: "Gadgets", icon: Cpu },
+  { view: "guest-articles", label: "Guest articles", icon: Megaphone },
   { view: "blog", label: "Blog", icon: FileText },
+  { view: "news", label: "AI News", icon: Newspaper },
 ];
 
 export function AdminApp({ search, nav: rawNav }: { search: AdminSearch; nav: Nav }) {
@@ -193,11 +221,26 @@ export function AdminApp({ search, nav: rawNav }: { search: AdminSearch; nav: Na
                   />
                 ))}
               {view === "categories" && <CategoriesView startNew={search.new === "1"} />}
+              {view === "news" && <NewsView />}
               {view === "blog" &&
                 (search.slug || search.new ? (
                   <PostEditor key={search.slug ?? "new"} slug={search.slug} nav={nav} />
                 ) : (
                   <BlogList nav={nav} />
+                ))}
+              {(view === "courses" ||
+                view === "tutorials" ||
+                view === "gadgets" ||
+                view === "guest-articles") &&
+                (search.slug || search.new ? (
+                  <SectionEditor
+                    key={`${view}|${search.slug ?? "new"}`}
+                    view={view}
+                    slug={search.slug}
+                    nav={nav}
+                  />
+                ) : (
+                  <SectionList key={view} view={view} nav={nav} />
                 ))}
             </main>
           </div>

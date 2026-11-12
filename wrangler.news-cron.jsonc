@@ -1,0 +1,27 @@
+// AI News cron Worker for the PREVIEW environment only (see docs/ai-news.md). A separate Worker from pixel-perfect:
+// it has no public URL, no routes, and its only binding is the preview D1 database. It runs the ingestion every 3 hours.
+//   bun run build && bun scripts/static/build-gate.mjs            (writes .output/server/news-cron.mjs)
+//   node node_modules/wrangler/bin/wrangler.js deploy --config wrangler.news-cron.jsonc
+//   node node_modules/wrangler/bin/wrangler.js secret put GEMINI_API_KEY --config wrangler.news-cron.jsonc
+// `bun run db:check-config` checks this file (name, database, schedule, no public URL).
+{
+  "name": "tryaitools-news-cron-preview",
+  "main": ".output/server/news-cron.mjs",
+  "compatibility_date": "2026-10-31",
+  "workers_dev": false,
+  "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tryaitools-preview",
+      "database_id": "ef1942a9-2804-440c-95d1-ce50ad70f875"
+    }
+  ],
+  "triggers": { "crons": ["0 */3 * * *"] },
+  "vars": {
+    "NEWS_MODEL": "gemini-3.5-flash-lite",
+    "NEWS_MAX_SOURCES_PER_RUN": "4",
+    "NEWS_MAX_SUMMARIES_PER_RUN": "4"
+  },
+  "observability": { "enabled": false }
+}

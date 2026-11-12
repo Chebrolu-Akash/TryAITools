@@ -1,13 +1,16 @@
 // Security headers applied to every SSR response (see src/server.ts).
 // Keep public/_headers in sync: it applies the same policy to static assets on hosts that serve them directly.
+import { NEWS_IMAGE_SOURCES } from "@/lib/news/model";
+
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   // TanStack Start streams inline bootstrap/hydration scripts, so inline scripts must be allowed.
   "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  // Tool logos come from Google's favicon service (which redirects to gstatic).
-  "img-src 'self' data: https://www.google.com https://*.gstatic.com https://www.google-analytics.com https://*.googletagmanager.com",
+  // Tool logos come from Google's favicon service (which redirects to gstatic). AI News article images come only from the
+  // official sources' media paths in NEWS_IMAGE_SOURCES (src/lib/news/model.ts).
+  `img-src 'self' data: https://www.google.com https://*.gstatic.com https://www.google-analytics.com https://*.googletagmanager.com ${NEWS_IMAGE_SOURCES.join(" ")}`,
   "connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
   "manifest-src 'self'",
   "object-src 'none'",

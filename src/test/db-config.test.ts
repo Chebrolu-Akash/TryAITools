@@ -8,7 +8,8 @@ import { captureRuntimeEnv, getRuntimeEnv } from "@/lib/db/env";
 import * as cfg from "../../scripts/db/wrangler-config.mjs";
 
 const ID = "ef1942a9-2804-440c-95d1-ce50ad70f875";
-const base = { name: "pixel-perfect", previews: {} };
+const MEDIA = { binding: "MEDIA", bucket_name: "tryaitools-media-preview" };
+const base = { name: "pixel-perfect", previews: { r2_buckets: [MEDIA] } };
 const plan = () =>
   cfg.planPreviewBinding(base, { databaseName: "tryaitools-preview", databaseId: ID });
 
@@ -85,6 +86,64 @@ describe("preview D1 layout (previews.d1_databases, no production binding)", () 
         .some((r: { ok: boolean }) => !r.ok),
     ).toBe(true);
   });
+  it("image storage: only a preview R2 bucket, only under previews", () => {
+    const p = plan();
+    const ok = (c: unknown) =>
+      cfg.validateRepoConfig(c, p.migrations).every((r: { ok: boolean }) => r.ok);
+    expect(ok(p.config)).toBe(true);
+    expect(ok({ ...p.config, r2_buckets: [MEDIA] })).toBe(false); // production binding
+    const named = (bucket_name: string) => ({
+      ...p.config,
+      previews: { ...p.config.previews, r2_buckets: [{ binding: "MEDIA", bucket_name }] },
+    });
+    expect(ok(named("tryaitools-media"))).toBe(false);
+    expect(ok(named("tryaitools-prod-preview"))).toBe(false);
+    // no bucket is allowed (image uploads are simply off), and so is a config without the key
+    expect(ok({ ...p.config, previews: { ...p.config.previews, r2_buckets: [] } })).toBe(true);
+    const { r2_buckets: _r, ...noR2 } = p.config.previews;
+    expect(ok({ ...p.config, previews: noR2 })).toBe(true);
+    // two MEDIA bindings are not
+    expect(
+      ok({ ...p.config, previews: { ...p.config.previews, r2_buckets: [MEDIA, MEDIA] } }),
+    ).toBe(false);
+    const gen = {
+      name: "pixel-perfect",
+      previews: { d1_databases: p.config.previews.d1_databases },
+    };
+    expect(cfg.validateGeneratedConfig(gen, p.config).some((r: { ok: boolean }) => !r.ok)).toBe(
+      true,
+    ); // Nitro dropped the bucket
+  });
+  it("production binding: only DB -> tryaitools-production, matching its migrations config", () => {
+    const p = plan();
+    const PROD_ID = "d120a8d7-1450-4d42-b345-5e22ce208dcd";
+    const prodMig = {
+      d1_databases: [
+        { binding: "PRODUCTION_DB", database_name: "tryaitools-production", database_id: PROD_ID },
+      ],
+    };
+    const top = [{ binding: "DB", database_name: "tryaitools-production", database_id: PROD_ID }];
+    const ok = (c: unknown, m: unknown = prodMig) =>
+      cfg.validateRepoConfig(c, p.migrations, m).every((r: { ok: boolean }) => r.ok);
+    expect(ok({ ...p.config, d1_databases: top })).toBe(true);
+    // missing, preview database at the top level, extra binding, wrong id
+    expect(ok(p.config)).toBe(false);
+    expect(ok({ ...p.config, d1_databases: p.config.previews.d1_databases })).toBe(false);
+    expect(ok({ ...p.config, d1_databases: [...top, { ...top[0], binding: "DB2" }] })).toBe(false);
+    expect(ok({ ...p.config, d1_databases: [{ ...top[0], database_id: ID }] })).toBe(false);
+    // a production migrations config that points at the preview database is refused
+    const bad = { d1_databases: [{ ...prodMig.d1_databases[0], database_id: ID }] };
+    expect(ok({ ...p.config, d1_databases: [{ ...top[0], database_id: ID }] }, bad)).toBe(false);
+    // generated config must carry the same top-level binding (and never the preview database)
+    const repo = { ...p.config, d1_databases: top };
+    const gen = { name: "pixel-perfect", previews: p.config.previews, d1_databases: top };
+    expect(cfg.validateGeneratedConfig(gen, repo).every((r: { ok: boolean }) => r.ok)).toBe(true);
+    expect(
+      cfg
+        .validateGeneratedConfig({ ...gen, d1_databases: undefined }, repo)
+        .some((r: { ok: boolean }) => !r.ok),
+    ).toBe(true);
+  });
   it("parses JSONC with comments, strings containing // and trailing commas", () => {
     expect(cfg.parseJsonc('{ // c\n "u": "https://x//y", /* b */ "a": [1,], }')).toEqual({
       u: "https://x//y",
@@ -143,8 +202,21 @@ describe("source safety scans", () => {
           .replace(/\/\/.*$/gm, ""),
       ).not.toMatch(/\bchanges\s*\(\)/);
   });
-  it("committed wrangler.jsonc has no top-level d1_databases", () => {
-    expect(cfg.parseJsonc(readFileSync("wrangler.jsonc", "utf8")).d1_databases).toBeUndefined();
+  it("committed wrangler.jsonc binds only the production database at the top level, never the preview one", () => {
+    const repo = cfg.parseJsonc(readFileSync("wrangler.jsonc", "utf8"));
+    const prod = cfg.parseJsonc(readFileSync(cfg.PRODUCTION_MIGRATIONS_CONFIG_FILE, "utf8"));
+    const preview = cfg.parseJsonc(readFileSync(cfg.MIGRATIONS_CONFIG_FILE, "utf8"));
+    expect(repo.d1_databases).toEqual([
+      {
+        binding: "DB",
+        database_name: "tryaitools-production",
+        database_id: prod.d1_databases[0].database_id,
+      },
+    ]);
+    expect(repo.d1_databases[0].database_id).not.toBe(preview.d1_databases[0].database_id);
+    expect(
+      cfg.validateRepoConfig(repo, preview, prod).every((r: { ok: boolean }) => r.ok),
+    ).toBe(true);
   });
 });
 

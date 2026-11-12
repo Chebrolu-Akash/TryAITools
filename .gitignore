@@ -37,3 +37,4 @@ db/import/out/
 wrangler.jsonc.bak-*
 wrangler.preview-migrations.jsonc.bak
 backup-*-preview-*.sql
+backup-*-production-*.sql

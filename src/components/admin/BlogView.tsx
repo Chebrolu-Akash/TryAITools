@@ -11,6 +11,7 @@ import {
   type PostForm,
 } from "./forms";
 import { MarkdownView } from "./MarkdownView";
+import { ImageField } from "./SectionsView";
 import {
   Banner,
   btnDanger,
@@ -44,7 +45,7 @@ const COPY: Record<
   publish: {
     label: "Publish",
     title: "Publish this post?",
-    text: "The post is marked published with today's date. The public site has no blog pages yet, so nothing becomes visible until they are built and approved.",
+    text: "The post is marked published with today's date and appears on the public Blog page.",
   },
   unpublish: {
     label: "Unpublish",
@@ -96,7 +97,7 @@ export function BlogList({ nav }: { nav: Nav }) {
     <div className="space-y-4">
       <PageHeader
         title="Blog"
-        description="Markdown posts. New posts start as drafts. The public site has no blog pages yet."
+        description="Markdown posts. New posts start as drafts and appear on the public Blog page once published."
         actions={newPost}
       />
       <div className="flex flex-wrap items-end gap-3 rounded-3xl border border-primary/10 bg-card p-4 shadow-card">
@@ -253,7 +254,7 @@ const TOOLBAR: Wrap[] = [
 ];
 
 /** Wraps the selection (or prefixes the current line) with Markdown syntax and keeps the cursor in place. */
-function MarkdownToolbar({
+export function MarkdownToolbar({
   target,
   value,
   onChange,
@@ -563,6 +564,22 @@ export function PostEditor({ slug, nav }: { slug?: string | undefined; nav: Nav 
             onChange={(e) => set("tagsText", e.target.value)}
           />
         </Field>
+        <div className="sm:col-span-2">
+          <ImageField
+            label="Cover image"
+            value={form.cover}
+            onChange={(v) => set("cover", v)}
+            error={errors.cover_image_id}
+          />
+        </div>
+        <Field label="Cover alt text" error={errors.cover_alt} hint="Required with a cover">
+          <input
+            className={inputCls}
+            maxLength={200}
+            value={form.cover_alt}
+            onChange={(e) => set("cover_alt", e.target.value)}
+          />
+        </Field>
       </section>
 
       <section className={card} aria-labelledby="pm-h">
@@ -590,8 +607,9 @@ export function PostEditor({ slug, nav }: { slug?: string | undefined; nav: Nav 
           </div>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Supported: headings, **bold**, *italic*, `code`, links, lists, quotes, code blocks. HTML
-          and images are not supported and are shown as plain text. {words.toLocaleString()} words.
+          Supported: headings, **bold**, *italic*, `code`, links, lists, quotes, code blocks, and
+          images uploaded here (Copy Markdown on an image). HTML is shown as plain text.{" "}
+          {words.toLocaleString()} words.
         </p>
         <div className="mt-3 grid gap-4 lg:grid-cols-2">
           <div className={tab === "preview" ? "hidden lg:block" : ""}>

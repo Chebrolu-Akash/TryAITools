@@ -2,6 +2,9 @@
 // the D1 reader builds tool and category pages with them too, on a small Catalog holding only the rows that page needs,
 // so the alternatives / related / content rules are literally the same code on both paths.
 import { featuredFrom, type FeaturedTool } from "@/lib/featured";
+import { isPricingFilter, matchesPricing, type PricingFilter } from "@/lib/pricing";
+import type { ToolPricing } from "@/lib/pricing-plans";
+import { matchesTag, tagFromSlug } from "@/lib/tags";
 import type { ToolContent } from "@/lib/tool-content";
 import {
   toPublic,
@@ -33,14 +36,43 @@ export type BrowseData = {
   categories: BrowseCategory[];
   featured: FeaturedTool[];
 };
-export type ToolsQuery = { q: string; category: string; page: number };
+/**
+ * `pricing`: "all", or one recorded pricing model (tools without one only match "all").
+ * `tag`: "" for all, or a tag's URL value (src/lib/tags.ts).
+ */
+export type ToolsQuery = {
+  q: string;
+  category: string;
+  pricing: PricingFilter;
+  tag: string;
+  page: number;
+};
 export type ToolsPageData = ToolsQuery & {
   items: PublicTool[];
   total: number;
   pageSize: number;
   categories: CategoryLink[];
 };
-export type CategoryPageData = { category: PublicCategory; tools: PublicTool[] };
+export type CategoryPageData = {
+  category: PublicCategory;
+  /** False when an editor set the category to noindex: the page then carries robots noindex and is not in the sitemap. */
+  indexable: boolean;
+  tools: PublicTool[];
+  /** Every published category with its public tool count (the category page's sidebar). */
+  categories: (CategoryLink & { toolCount: number })[];
+  /** Reviewed, indexable tools listed on this page (shown first as "Top picks"). */
+  topPicks?: PublicTool[];
+  /** Distinct public tools across all categories (a tool on several category pages counts once). */
+  totalTools?: number;
+  /** Editor-written landing copy (categories.seo_title, seo_description, intro, faqs). */
+  landing?: CategoryLanding;
+};
+export type CategoryLanding = {
+  seoTitle: string | null;
+  seoDescription: string | null;
+  intro: string | null;
+  faqs: { q: string; a: string }[];
+};
 export type ToolPageData = {
   tool: PublicTool;
   content: ToolContent;
@@ -50,6 +82,8 @@ export type ToolPageData = {
   alternatives: PublicTool[];
   related: PublicTool[];
   relatedCategories: CategoryLink[];
+  /** Detailed pricing plans entered in the admin (D1 only); null when there are none. */
+  pricing: ToolPricing | null;
 };
 export type SitemapData = { categorySlugs: string[]; toolSlugs: string[] };
 
@@ -64,6 +98,8 @@ export function normalizeToolsQuery(input: Partial<ToolsQuery>): ToolsQuery {
       .toLowerCase()
       .slice(0, MAX_QUERY),
     category: String(input.category ?? "").slice(0, 80),
+    pricing: isPricingFilter(input.pricing) ? input.pricing : "all",
+    tag: tagFromSlug(input.tag) ? String(input.tag) : "",
     page: Number.isInteger(page) ? Math.min(MAX_PAGE, Math.max(1, page)) : 1,
   };
 }
@@ -72,6 +108,10 @@ export const matchesQuery = (t: PublicTool, q: string) =>
   t.name.toLowerCase().includes(q) ||
   t.subcategory.toLowerCase().includes(q) ||
   t.url.includes(q);
+
+/** A category page's tools narrowed to a subcategory (optional) and a search (already normalised; same rule as /tools). */
+export const filterTools = <T extends PublicTool>(tools: T[], sub: string, q: string): T[] =>
+  tools.filter((t) => (!sub || t.subcategory === sub) && matchesQuery(t, q));
 
 export const summaryOf = (c: Catalog): SiteSummary => ({
   toolCount: c.tools.length,
@@ -103,7 +143,13 @@ export function toolsPageOf(c: Catalog, query: ToolsQuery): ToolsPageData {
   const matching =
     query.category && !cat
       ? []
-      : c.tools.filter((t) => (!cat || t.category === cat.name) && matchesQuery(t, query.q));
+      : c.tools.filter(
+          (t) =>
+            (!cat || t.category === cat.name) &&
+            matchesQuery(t, query.q) &&
+            matchesPricing(t.pricing, query.pricing) &&
+            matchesTag(t.tags, tagFromSlug(query.tag)),
+        );
   const start = (query.page - 1) * PAGE_SIZE;
   return {
     ...query,
@@ -116,10 +162,26 @@ export function toolsPageOf(c: Catalog, query: ToolsQuery): ToolsPageData {
 
 export function categoryPageOf(c: Catalog, slug: string): CategoryPageData | null {
   const category = c.categoryBySlug(slug);
-  return category ? { category, tools: c.toolsIn(category.name).map(toPublic) } : null;
+  return category
+    ? {
+        category,
+        indexable: true, // tools.json has no per-category indexing setting
+        tools: c.toolsIn(category.name).map(toPublic),
+        categories: c.categories.map(({ name, slug: s }) => ({
+          name,
+          slug: s,
+          toolCount: c.toolsIn(name).length,
+        })),
+      }
+    : null;
 }
 
-export function toolPageOf(c: Catalog, tool: CatalogTool, copy: ToolCopy | null): ToolPageData {
+export function toolPageOf(
+  c: Catalog,
+  tool: CatalogTool,
+  copy: ToolCopy | null,
+  pricing: ToolPricing | null = null,
+): ToolPageData {
   const alternatives = c.alternativesFor(tool, 6);
   return {
     tool: toPublic(tool),
@@ -130,6 +192,7 @@ export function toolPageOf(c: Catalog, tool: CatalogTool, copy: ToolCopy | null)
     alternatives: alternatives.map(toPublic),
     related: c.relatedTools(tool, alternatives, 4).map(toPublic),
     relatedCategories: c.relatedCategories(tool.category, 4).map(link),
+    pricing,
   };
 }
 

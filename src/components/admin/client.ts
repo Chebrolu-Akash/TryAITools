@@ -28,9 +28,13 @@ export async function adminRequest<T>(
     headers["x-requested-with"] = "tryaitools-admin"; // required by the server's CSRF check
     init.body = JSON.stringify(body ?? {});
   }
+  return send<T>(`/api/admin/${path.replace(/^\/+/, "")}`, init, fetchFn);
+}
+
+async function send<T>(url: string, init: RequestInit, fetchFn: FetchFn): Promise<T> {
   let res: Response;
   try {
-    res = await fetchFn(`/api/admin/${path.replace(/^\/+/, "")}`, init);
+    res = await fetchFn(url, init);
   } catch {
     throw new AdminApiError(0, "network_error", "Could not reach the server. Nothing was saved.");
   }
@@ -57,6 +61,28 @@ export async function adminRequest<T>(
     );
   }
   return data as T;
+}
+
+/** Uploads one image as the raw request body (the only non-JSON write the server accepts). */
+export function uploadImage<T>(
+  file: Blob,
+  alt: string,
+  fetchFn: FetchFn = (i, init) => fetch(i, init),
+): Promise<T> {
+  return send<T>(
+    `/api/admin/media${qs({ alt: alt.trim() })}`,
+    {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        accept: "application/json",
+        "content-type": file.type,
+        "x-requested-with": "tryaitools-admin",
+      },
+      body: file,
+    },
+    fetchFn,
+  );
 }
 
 export const api = {

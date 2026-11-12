@@ -72,6 +72,48 @@ const tags = z
   .optional()
   .transform((v) => (v ?? []).filter(Boolean));
 
+// Detailed pricing (src/lib/pricing-plans.ts). Prices are only what the official page shows: a paid plan may have no
+// price ("Pricing not specified"), a custom plan never has one.
+const pricePoint = z
+  .object({
+    amount: z.number().min(0, "Must be 0 or more").max(10_000_000),
+    currency: z.enum(["USD", "INR", "EUR", "GBP"]),
+    period: z.enum(["month", "year"]).nullable(),
+    billing: z.enum(["annual", "monthly"]).nullable(),
+  })
+  .strict();
+const plan = z
+  .object({
+    name: text(60).refine((v) => v.length > 0, "Plan name is required"),
+    kind: z.enum(["free", "paid", "usage", "custom", "trial"]),
+    from: z.boolean(),
+    prices: z.array(pricePoint).max(3, "At most 3 prices per plan"),
+    unit: optText(40),
+    note: optText(120),
+  })
+  .strict()
+  .refine((p) => p.kind !== "custom" || p.prices.length === 0, {
+    message: 'A custom plan has no price (it shows "Custom pricing")',
+    path: ["prices"],
+  });
+export const pricingPlansSchema = z
+  .object({
+    groups: z
+      .array(
+        z
+          .object({
+            name: text(40).refine((v) => v.length > 0, "Group name is required"),
+            plans: z.array(plan).min(1, "Add at least one plan").max(12, "At most 12 plans"),
+          })
+          .strict(),
+      )
+      .max(6, "At most 6 groups"),
+  })
+  .strict()
+  .nullable()
+  .optional()
+  .transform((v) => (v && v.groups.length ? v : null));
+
 export const toolFields = {
   name: text(120).refine((v) => v.length > 0, "Name is required"),
   display_name: optText(120),
@@ -90,6 +132,21 @@ export const toolFields = {
   tips: list(20, 400),
   pricing_note: optText(300),
   pricing_source: optText(300),
+  /** null = not recorded (never guessed). Optional for older clients; omitting it records "not recorded". */
+  pricing_model: z
+    .enum(["free", "freemium", "free_trial", "paid"])
+    .optional()
+    .nullable()
+    .transform((v) => v ?? null),
+  pricing_plans: pricingPlansSchema,
+  /** YYYY-MM-DD the pricing was checked on the official page */
+  pricing_checked_at: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((v) => (v ? v : null))
+    .refine((v) => v === null || /^\d{4}-\d{2}-\d{2}$/.test(v), "Use YYYY-MM-DD"),
   platforms: list(15, 60),
   seo_title: optText(70),
   seo_description: optText(170),
@@ -133,11 +190,40 @@ const categoryFields = {
   indexing: z.enum(["index", "noindex"]),
   seo_title: optText(70),
   seo_description: optText(170),
+  /** Landing-page introduction (plain text, paragraphs separated by blank lines). Absent = keep the stored value. */
+  intro: text(3000)
+    .nullable()
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v ? v : null)),
+  /** Landing-page FAQs. Absent = keep the stored value; null or [] = none. */
+  faqs: z
+    .array(
+      z
+        .object({
+          q: text(200).refine((v) => v.length > 0, "Question is required"),
+          a: text(1200).refine((v) => v.length > 0, "Answer is required"),
+        })
+        .strict(),
+    )
+    .max(10)
+    .nullable()
+    .optional(),
 };
 export const categoryCreateSchema = z.object({ slug: slugSchema, ...categoryFields }).strict();
 export const categoryUpdateSchema = z
   .object({ updated_at: z.string().min(10).max(40), ...categoryFields })
   .strict();
+
+/** An uploaded image (media.id); see src/lib/admin/media.ts. */
+const mediaId = z
+  .string()
+  .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/, "Invalid image")
+  .optional()
+  .nullable()
+  .transform((v) => v ?? null);
+const coverAlt = (v: { cover_image_id: string | null; cover_alt: string | null }) =>
+  !v.cover_image_id || !!v.cover_alt;
+const coverAltMsg = { message: "Describe the cover image (alt text)", path: ["cover_alt"] };
 
 const blogFields = {
   title: text(160).refine((v) => v.length > 0, "Title is required"),
@@ -151,13 +237,17 @@ const blogFields = {
   seo_title: optText(70),
   seo_description: optText(170),
   canonical_url: optUrl,
+  cover_image_id: mediaId,
+  cover_alt: optText(200),
 };
 export const blogCreateSchema = z
   .object({ client_id: clientIdSchema, slug: slugSchema, ...blogFields })
-  .strict();
+  .strict()
+  .refine(coverAlt, coverAltMsg);
 export const blogUpdateSchema = z
   .object({ updated_at: z.string().min(10).max(40), ...blogFields })
-  .strict();
+  .strict()
+  .refine(coverAlt, coverAltMsg);
 export const BLOG_ACTIONS = ["publish", "unpublish", "archive", "restore"] as const;
 export const blogActionSchema = z
   .object({ action: z.enum(BLOG_ACTIONS), updated_at: z.string().min(10).max(40) })
@@ -177,3 +267,186 @@ export function fieldErrors(err: z.ZodError): FieldErrors {
   }
   return out;
 }
+
+// ---------------------------------------------------------------- content sections (Phase 2)
+// Courses & books, gadgets and sponsored guest articles. Same rules as above: plain text, safe Markdown, strict objects.
+
+const markdownBody = (max: number) =>
+  z
+    .string()
+    .max(max, "Too long")
+    .refine((v) => !CONTROL.test(v.replace(/[\t\n\r]/g, "")), "Contains control characters");
+
+/** https only (affiliate and sponsor links are always opened on the visitor's behalf). */
+const optHttpsUrl = optUrl.refine(
+  (v) => v === null || v.startsWith("https://"),
+  "Must start with https://",
+);
+
+const indexing = z.enum(["index", "noindex"]);
+/** An indexable course or gadget page needs real content: at least this much review text (thin pages stay noindex). */
+export const MIN_INDEXABLE_REVIEW = 300;
+const reviewForIndex = (v: { indexing: string; review_md: string }) =>
+  v.indexing === "noindex" || v.review_md.trim().length >= MIN_INDEXABLE_REVIEW;
+const reviewForIndexMsg = {
+  message: `Write at least ${MIN_INDEXABLE_REVIEW} characters of review before allowing search indexing`,
+  path: ["indexing"],
+};
+
+const courseFields = {
+  kind: z.enum(["course", "book"]),
+  title: text(160).refine((v) => v.length > 0, "Title is required"),
+  provider_or_author: optText(120),
+  summary: optText(300),
+  review_md: markdownBody(50_000),
+  level: z.enum(["beginner", "intermediate", "advanced", "all"]),
+  format: optText(40),
+  duration: optText(40),
+  price_text: optText(40),
+  is_free: z.boolean(),
+  affiliate_url: optHttpsUrl,
+  affiliate_network: optText(60),
+  image_id: mediaId,
+  topics: list(8, 40),
+  featured: z.boolean(),
+  sort_order: z.number().int().min(0).max(100_000),
+  indexing,
+  seo_title: optText(70),
+  seo_description: optText(170),
+};
+export const courseCreateSchema = z
+  .object({ client_id: clientIdSchema, slug: slugSchema, ...courseFields })
+  .strict()
+  .refine(reviewForIndex, reviewForIndexMsg);
+export const courseUpdateSchema = z
+  .object({ updated_at: z.string().min(10).max(40), ...courseFields })
+  .strict()
+  .refine(reviewForIndex, reviewForIndexMsg);
+
+const retailer = z
+  .object({ name: text(60).refine((v) => v.length > 0, "Name is required"), url: optHttpsUrl })
+  .strict()
+  .refine((r) => r.url !== null, { message: "URL is required", path: ["url"] });
+const gadgetFields = {
+  title: text(160).refine((v) => v.length > 0, "Title is required"),
+  brand: optText(80),
+  gadget_type: z.enum([
+    "smart-speakers",
+    "wearables",
+    "cameras",
+    "translators",
+    "home-robots",
+    "ai-pcs",
+    "other",
+  ]),
+  summary: optText(300),
+  features: list(5, 120),
+  review_md: markdownBody(50_000),
+  price_text: optText(40),
+  retailer: optText(60),
+  affiliate_url: optHttpsUrl,
+  alt_retailers: z.array(retailer).max(4, "At most 4 other retailers"),
+  image_id: mediaId,
+  featured: z.boolean(),
+  sort_order: z.number().int().min(0).max(100_000),
+  indexing,
+  seo_title: optText(70),
+  seo_description: optText(170),
+};
+export const gadgetCreateSchema = z
+  .object({ client_id: clientIdSchema, slug: slugSchema, ...gadgetFields })
+  .strict()
+  .refine(reviewForIndex, reviewForIndexMsg);
+export const gadgetUpdateSchema = z
+  .object({ updated_at: z.string().min(10).max(40), ...gadgetFields })
+  .strict()
+  .refine(reviewForIndex, reviewForIndexMsg);
+
+const SPONSOR_LABELS = ["Sponsored", "Paid partnership", "Partner content"] as const;
+const guestFields = {
+  title: text(160).refine((v) => v.length > 0, "Title is required"),
+  excerpt: optText(300),
+  body_md: markdownBody(100_000),
+  cover_image_id: mediaId,
+  cover_alt: optText(200),
+  topic: optText(40),
+  contributor_name: text(80).refine((v) => v.length > 0, "Contributor name is required"),
+  contributor_email: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .nullable()
+    .transform((v) => (v ? v.toLowerCase() : null))
+    .refine((v) => v === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v), "Invalid email"),
+  sponsor_name: text(120).refine((v) => v.length > 0, "Sponsor is required"),
+  sponsor_url: optHttpsUrl,
+  sponsor_label: z.enum(SPONSOR_LABELS),
+  payment_status: z.enum(["unpaid", "paid", "refunded"]),
+  payment_ref: optText(80),
+  indexing,
+  seo_title: optText(70),
+  seo_description: optText(170),
+  canonical_url: optHttpsUrl,
+};
+export const guestCreateSchema = z
+  .object({ client_id: clientIdSchema, slug: slugSchema, ...guestFields })
+  .strict()
+  .refine(coverAlt, coverAltMsg);
+export const guestUpdateSchema = z
+  .object({ updated_at: z.string().min(10).max(40), ...guestFields })
+  .strict()
+  .refine(coverAlt, coverAltMsg);
+
+const tutorialFields = {
+  title: text(160).refine((v) => v.length > 0, "Title is required"),
+  author_or_provider: optText(120),
+  summary: optText(300),
+  body_md: markdownBody(100_000),
+  difficulty: z.enum(["beginner", "intermediate", "advanced"]),
+  format: optText(40),
+  duration: optText(40),
+  resource_url: optHttpsUrl,
+  is_affiliate: z.boolean(),
+  is_free: z.boolean(),
+  image_id: mediaId,
+  topics: list(8, 40),
+  featured: z.boolean(),
+  sort_order: z.number().int().min(0).max(100_000),
+  indexing,
+  seo_title: optText(70),
+  seo_description: optText(170),
+};
+/** Indexable tutorials need real content here (a link-only tutorial is a thin page): 300+ characters of body. */
+const tutorialForIndex = (v: { indexing: string; body_md: string }) =>
+  v.indexing === "noindex" || v.body_md.trim().length >= MIN_INDEXABLE_REVIEW;
+const tutorialForIndexMsg = {
+  message: `Write at least ${MIN_INDEXABLE_REVIEW} characters of tutorial before allowing search indexing`,
+  path: ["indexing"],
+};
+/** An affiliate flag needs a link to apply to. */
+const affiliateNeedsUrl = (v: { is_affiliate: boolean; resource_url: string | null }) =>
+  !v.is_affiliate || v.resource_url !== null;
+const affiliateNeedsUrlMsg = { message: "Add the link this applies to", path: ["is_affiliate"] };
+export const tutorialCreateSchema = z
+  .object({ client_id: clientIdSchema, slug: slugSchema, ...tutorialFields })
+  .strict()
+  .refine(tutorialForIndex, tutorialForIndexMsg)
+  .refine(affiliateNeedsUrl, affiliateNeedsUrlMsg);
+export const tutorialUpdateSchema = z
+  .object({ updated_at: z.string().min(10).max(40), ...tutorialFields })
+  .strict()
+  .refine(tutorialForIndex, tutorialForIndexMsg)
+  .refine(affiliateNeedsUrl, affiliateNeedsUrlMsg);
+
+export const SECTION_ACTIONS = [
+  "publish",
+  "unpublish",
+  "archive",
+  "restore",
+  "send_to_review",
+] as const;
+export const sectionActionSchema = z
+  .object({ action: z.enum(SECTION_ACTIONS), updated_at: z.string().min(10).max(40) })
+  .strict();
+export const mediaAltSchema = z.object({ alt: optText(200) }).strict();

@@ -4,7 +4,16 @@ import { pageHead } from "@/lib/seo";
 
 // The admin shell. Access is enforced on the server (src/server.ts -> guardAdminPage) before this page is
 // served, and again by every /api/admin call. Nothing here is trusted for authorization.
-const VIEWS = ["tools", "categories", "blog"] as const;
+const VIEWS = [
+  "tools",
+  "categories",
+  "blog",
+  "courses",
+  "tutorials",
+  "gadgets",
+  "guest-articles",
+  "news",
+] as const;
 const slugLike = (v: unknown) =>
   typeof v === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(v) && v.length <= 80 ? v : undefined;
 

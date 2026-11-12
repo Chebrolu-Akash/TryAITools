@@ -1,53 +1,110 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Search } from "lucide-react";
+import { ToolSearchInput } from "@/components/site/ToolSearchInput";
 import { Page } from "@/components/site/Layout";
 import { ToolCard } from "@/components/site/ToolCard";
 import { fetchToolsPage } from "@/lib/catalog/api";
 import type { PublicTool } from "@/lib/catalog/model";
+import { searchTools } from "@/lib/catalog/search-client";
+import type { ToolsPageData } from "@/lib/catalog/views";
+import { isPricingFilter, PRICING_LABELS, PRICING_MODELS, type PricingFilter } from "@/lib/pricing";
 import { pageHead } from "@/lib/seo";
+import { absoluteUrl, countLabel } from "@/lib/site";
 import { shortName } from "@/lib/tool-utils";
 
-type ToolsSearch = { q?: string | undefined; category?: string | undefined };
+type ToolsSearch = {
+  q?: string | undefined;
+  category?: string | undefined;
+  pricing?: PricingFilter | undefined;
+};
 
-// Search, filtering and paging run on the server (src/lib/catalog/reader.ts): the browser receives 48 tools at a time.
+// /tools is pre-built with the default first page (48 tools). Search, category and pricing filters and "Load more" query
+// /api/search from the browser, so the HTML never depends on the query string and the page stays static.
 export const Route = createFileRoute("/tools/")({
   validateSearch: (s: Record<string, unknown>): ToolsSearch => ({
     ...(typeof s["q"] === "string" && s["q"] ? { q: s["q"].slice(0, 100) } : {}),
     ...(typeof s["category"] === "string" && s["category"]
       ? { category: s["category"].slice(0, 80) }
       : {}),
+    ...(isPricingFilter(s["pricing"]) && s["pricing"] !== "all" ? { pricing: s["pricing"] } : {}),
   }),
-  loaderDeps: ({ search }) => ({ q: search.q ?? "", category: search.category ?? "" }),
-  loader: ({ deps }) => fetchToolsPage({ data: { ...deps, page: 1 } }),
-  head: () =>
-    pageHead({
-      title: "All AI Tools — Search & Filter | TryAITools",
-      description: "Search and filter more than 2,000 AI tools across 15 categories.",
-      path: "/tools",
-    }),
+  loader: () => fetchToolsPage({ data: { q: "", category: "", pricing: "all", tag: "", page: 1 } }),
+  staleTime: Infinity, // never refetch in the browser (that would call the Worker's page renderer)
+  head: ({ loaderData }) => {
+    const n = loaderData ? countLabel(loaderData.total) : "";
+    return {
+      ...pageHead({
+        title: "All AI Tools — Search & Filter | TryAITools",
+        description: `Search and filter ${n ? `${n} ` : ""}AI tools by category, pricing model and use case, from writing and images to coding, marketing and education.`,
+        path: "/tools",
+      }),
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: "All AI Tools",
+                item: absoluteUrl("/tools"),
+              },
+            ],
+          }),
+        },
+      ],
+    };
+  },
   component: ToolsPage,
 });
 
 function ToolsPage() {
   const search = Route.useSearch();
-  const first = Route.useLoaderData();
+  const initial = Route.useLoaderData();
   const navigate = useNavigate({ from: "/tools/" });
+  const [result, setResult] = useState<ToolsPageData>(initial);
+  const [items, setItems] = useState<PublicTool[]>(initial.items);
   const [q, setQ] = useState(search.q ?? "");
-  const [items, setItems] = useState<PublicTool[]>(first.items);
-  const [page, setPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [moreError, setMoreError] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
 
-  // A new first page (new search or category) replaces what "Load more" appended.
+  // Fetch the first page for the query in the URL whenever it differs from what is shown (after mount, so the first
+  // browser render matches the pre-built HTML).
+  const wantQ = (search.q ?? "").trim().toLowerCase();
+  const wantCategory = search.category ?? "";
+  const wantPricing: PricingFilter = search.pricing ?? "all";
   useEffect(() => {
-    setItems(first.items);
-    setPage(1);
-    setMoreError(false);
-  }, [first]);
+    if (
+      result.q === wantQ &&
+      result.category === wantCategory &&
+      (result.pricing ?? "all") === wantPricing &&
+      result.page === 1
+    )
+      return;
+    const ctrl = new AbortController();
+    setBusy(true);
+    setError(false);
+    searchTools(
+      { q: wantQ, category: wantCategory, pricing: wantPricing, tag: "", page: 1 },
+      ctrl.signal,
+    )
+      .then((r) => {
+        setResult(r);
+        setItems(r.items);
+      })
+      .catch((e: unknown) => {
+        if ((e as Error).name !== "AbortError") setError(true);
+      })
+      .finally(() => setBusy(false));
+    return () => ctrl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when the requested query changes
+  }, [wantQ, wantCategory, wantPricing]);
   useEffect(() => setQ(search.q ?? ""), [search.q]);
 
-  // Typing updates the URL (and so the server query) after a short pause.
+  // Typing updates the URL (and so the search) after a short pause.
   const typed = useRef(false);
   useEffect(() => {
     if (!typed.current) return;
@@ -62,50 +119,48 @@ function ToolsPage() {
   }, [q, navigate]);
 
   async function loadMore() {
-    setLoadingMore(true);
-    setMoreError(false);
+    setBusy(true);
+    setError(false);
     try {
-      const next = await fetchToolsPage({
-        data: { q: first.q, category: first.category, page: page + 1 },
+      const next = await searchTools({
+        q: result.q,
+        category: result.category,
+        pricing: result.pricing ?? "all",
+        tag: "",
+        page: result.page + 1,
       });
       setItems((prev) => [...prev, ...next.items]);
-      setPage(next.page);
+      setResult(next);
     } catch {
-      setMoreError(true);
+      setError(true);
     } finally {
-      setLoadingMore(false);
+      setBusy(false);
     }
   }
 
   return (
     <Page>
       <section className="bg-hero pb-12 pt-14">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="page-container">
           <h1 className="text-4xl font-bold">All AI Tools</h1>
           <p className="mt-2 text-foreground/70" aria-live="polite">
-            {first.total.toLocaleString()} tools found
+            {result.total.toLocaleString()} tools found
           </p>
-          <div className="mt-6 flex max-w-xl items-center gap-2 rounded-2xl bg-background p-2 shadow-soft">
-            <Search className="ml-3 h-5 w-5 text-muted-foreground" />
-            <input
-              value={q}
-              maxLength={100}
-              onChange={(e) => {
-                typed.current = true;
-                setQ(e.target.value);
-              }}
-              placeholder="Search by name or use case…"
-              aria-label="Search AI tools"
-              className="flex-1 bg-transparent px-2 py-2 outline-none"
-            />
-          </div>
+          <ToolSearchInput
+            value={q}
+            onChange={(v) => {
+              typed.current = true;
+              setQ(v);
+            }}
+          />
         </div>
       </section>
-      <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
-        <div className="flex flex-wrap gap-2">
+      <div className="page-container pt-8">
+        <h2 className="filter-heading">Categories</h2>
+        <div role="group" aria-label="Filter by category" className="flex flex-wrap gap-2">
           {[
             { slug: "", label: "All" },
-            ...first.categories.map((c) => ({ slug: c.slug, label: shortName(c.name) })),
+            ...result.categories.map((c) => ({ slug: c.slug, label: shortName(c.name) })),
           ].map((c) => (
             <button
               key={c.label}
@@ -114,9 +169,9 @@ function ToolsPage() {
                   search: (s: ToolsSearch) => ({ ...s, category: c.slug || undefined }),
                 })
               }
-              aria-pressed={first.category === c.slug}
+              aria-pressed={result.category === c.slug}
               className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
-                first.category === c.slug
+                result.category === c.slug
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-card hover:border-primary/40"
               }`}
@@ -125,28 +180,62 @@ function ToolsPage() {
             </button>
           ))}
         </div>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div role="group" aria-label="Filter by pricing" className="filter-section">
+          <h2 className="filter-heading">Pricing</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            {(["all", ...PRICING_MODELS] as PricingFilter[]).map((p) => {
+              const on = (result.pricing ?? "all") === p;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() =>
+                    void navigate({
+                      search: (s: ToolsSearch) => ({ ...s, pricing: p === "all" ? undefined : p }),
+                    })
+                  }
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    on
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-foreground/80 hover:border-primary/40"
+                  }`}
+                >
+                  {p === "all" ? "All" : PRICING_LABELS[p]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div
+          className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6 2xl:grid-cols-4"
+          aria-busy={busy}
+        >
           {items.map((t) => (
             <ToolCard key={t.slug} tool={t} />
           ))}
         </div>
-        {first.total === 0 && (
-          <p className="py-20 text-center text-muted-foreground">No tools match your search.</p>
+        {result.total === 0 && !busy && (
+          <p className="py-20 text-center text-muted-foreground">
+            {(result.pricing ?? "all") !== "all"
+              ? `No tools with ${PRICING_LABELS[result.pricing as Exclude<PricingFilter, "all">]} pricing match yet. Pricing is shown only once it has been verified for a tool.`
+              : "No tools match your search."}
+          </p>
         )}
-        {items.length < first.total && (
+        {error && (
+          <p role="alert" className="mt-6 text-center text-sm text-destructive">
+            Could not load tools. Please try again.
+          </p>
+        )}
+        {items.length < result.total && (
           <div className="mt-10 text-center">
             <button
               onClick={() => void loadMore()}
-              disabled={loadingMore}
+              disabled={busy}
               className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-soft disabled:opacity-60"
             >
-              {loadingMore ? "Loading…" : "Load more"}
+              {busy ? "Loading…" : "Load more"}
             </button>
-            {moreError && (
-              <p role="alert" className="mt-3 text-sm text-destructive">
-                Could not load more tools. Please try again.
-              </p>
-            )}
           </div>
         )}
       </div>

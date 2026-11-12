@@ -1,0 +1,153 @@
+{
+  "_note": "Category landing copy (categories.seo_title, seo_description, intro, faqs). Original editorial text about each category; no product-specific claims, prices or statistics. Applied with scripts/db/category-landing.mjs.",
+  "ai-writing-tools": {
+    "seo_title": "Best AI Writing Tools: Compare Writing Assistants",
+    "seo_description": "Compare AI writing tools for blog posts, emails, copywriting, editing and paraphrasing. See features, pricing models and alternatives in one place.",
+    "intro": "AI writing tools help you get from a blank page to a usable draft faster. They range from general writing assistants that draft and rewrite almost anything, to specialised tools for blog posts, marketing copy, emails, academic writing, scripts, grammar checking and paraphrasing.\n\nThe right choice depends on what you write most often. Look at how well a tool keeps your tone of voice, whether it can work with your own documents, which languages it supports, and how its free plan or trial limits compare with how much you write. Always fact-check AI drafts before publishing.",
+    "faqs": [
+      { "q": "What is an AI writing tool?", "a": "An AI writing tool uses a language model to draft, rewrite, summarise or edit text from your instructions. Some are general assistants; others focus on one job such as marketing copy, emails or grammar." },
+      { "q": "Are there free AI writing tools?", "a": "Many writing tools offer a free plan or a free trial with usage limits. Each reviewed tool page shows the pricing model we verified on the official website, and links to the official pricing page." },
+      { "q": "Can I publish AI-written text as it is?", "a": "It is safer not to. Check facts, names and figures, add your own experience and edit the draft into your own voice before publishing it." }
+    ]
+  },
+  "ai-image-tools": {
+    "seo_title": "Best AI Image Tools: Generators and Photo Editors",
+    "seo_description": "Compare AI image generators, photo editors, upscalers and background removers. See what each tool does, its pricing model and alternatives.",
+    "intro": "AI image tools create and edit pictures from text prompts or existing photos. This category covers image and art generators, photo editors, enhancement and upscaling tools, background removers, avatar generators and tools for social media graphics.\n\nWhen comparing them, consider the style and quality you need, how much control you have over the result, whether you can edit parts of an image, and the licence terms for commercial use. Free plans often limit the number or resolution of images.",
+    "faqs": [
+      { "q": "What can AI image tools do?", "a": "They can generate new images from a text description, edit or extend existing photos, remove backgrounds, upscale low-resolution pictures and create avatars or social media graphics." },
+      { "q": "Can I use AI-generated images commercially?", "a": "It depends on each tool's terms and your plan. Check the licence on the tool's official website before using generated images in commercial work." },
+      { "q": "Which AI image tool should I start with?", "a": "Start with the job you need done: a generator for new artwork, an editor for changing photos, or a specialised tool for backgrounds or upscaling. Our top picks are reviewed against each tool's official website." }
+    ]
+  },
+  "ai-video-tools": {
+    "seo_title": "Best AI Video Tools: Generators, Editors and Avatars",
+    "seo_description": "Compare AI video generators, editors, avatar and voiceover tools, translation and screen recording tools. Features, pricing models and alternatives.",
+    "intro": "AI video tools help you produce video with far less manual editing. The category includes text-to-video generators, AI-assisted editors, talking-avatar tools, video translation and dubbing, voiceover, animation, screen recording and tools that turn long videos into short clips.\n\nCompare output quality and length limits, how much you can edit after generation, export resolution, watermarks on free plans and whether the tool supports the languages you need.",
+    "faqs": [
+      { "q": "What is an AI video generator?", "a": "An AI video generator creates video clips from a text prompt, an image or a script. Some produce cinematic footage; others create presenter-style videos with digital avatars." },
+      { "q": "Do free AI video tools add watermarks?", "a": "Free plans often add a watermark or limit resolution and length. Check the official pricing page linked from each reviewed tool." },
+      { "q": "Can AI translate my videos?", "a": "Several tools translate speech and subtitles and some re-voice the video in another language. Results vary, so review the translation before publishing." }
+    ]
+  },
+  "ai-audio-voice-tools": {
+    "seo_title": "Best AI Audio and Voice Tools: TTS, Cloning, Music",
+    "seo_description": "Compare AI voice generators, voice cloning, transcription, audio editing, podcast and music tools. See verified features, pricing models and alternatives.",
+    "intro": "AI audio and voice tools turn text into natural-sounding speech, clone voices, transcribe recordings, clean up audio, dub content into other languages, help produce podcasts and even compose music and sound effects.\n\nCompare voice quality and language coverage, how voices may be used commercially, consent rules for voice cloning, transcription accuracy for your accents and audio quality, and the usage limits of free plans.",
+    "faqs": [
+      { "q": "What is text-to-speech?", "a": "Text-to-speech (TTS) converts written text into spoken audio. Modern AI voices can sound natural and offer different voices, languages and speaking styles." },
+      { "q": "Is AI voice cloning allowed?", "a": "Reputable tools require consent from the person whose voice is cloned and restrict misuse. Read each tool's terms before cloning any voice." },
+      { "q": "Can AI transcribe meetings and interviews?", "a": "Yes. Transcription tools convert recordings into text, and some add speaker labels and summaries. Accuracy depends on audio quality, accents and language." }
+    ]
+  },
+  "ai-chatbots-assistants": {
+    "seo_title": "Best AI Chatbots and Assistants Compared",
+    "seo_description": "Compare AI chatbots and assistants for research, writing, coding, meetings, customer support and productivity, with verified features and pricing models.",
+    "intro": "AI chatbots and assistants answer questions, help you think through problems and complete tasks in conversation. This category covers general chatbot platforms, personal and productivity assistants, research and meeting assistants, coding assistants, voice assistants, and chatbot builders for customer support and sales.\n\nLook at which models a chatbot uses, whether it can search the web or read your files, how it handles your data, and what its free plan limits are. For business chatbots, check integrations with your website and help-desk tools.",
+    "faqs": [
+      { "q": "What is the difference between a chatbot and an AI assistant?", "a": "The terms overlap. A chatbot is usually a conversational interface, while an assistant also performs tasks such as scheduling, summarising documents or taking meeting notes." },
+      { "q": "Can I build my own chatbot for my website?", "a": "Yes. No-code chatbot builders let you train a bot on your own content and add it to your site, often with hand-off to a human agent." },
+      { "q": "Is it safe to share my data with AI chatbots?", "a": "Check each tool's privacy policy and settings. Avoid sharing confidential information unless the tool offers data controls suited to your needs." }
+    ]
+  },
+  "ai-marketing-tools": {
+    "seo_title": "Best AI Marketing Tools for Content, Ads and Leads",
+    "seo_description": "Compare AI marketing tools for content, advertising, lead generation, automation, conversion optimisation and brand strategy. Features and pricing models.",
+    "intro": "AI marketing tools help teams plan, create and optimise campaigns. The category includes content marketing tools, ad and PPC assistants, lead generation, marketing automation, influencer marketing, conversion-rate optimisation, customer-journey analytics and brand and creative tools.\n\nWhen choosing one, check which channels it supports, how it connects to your CRM and analytics, whether you can control brand voice and approvals, and how pricing scales with contacts, seats or usage.",
+    "faqs": [
+      { "q": "How do marketers use AI?", "a": "Common uses include drafting campaign content, generating ad variations, scoring and nurturing leads, personalising emails and analysing campaign performance." },
+      { "q": "Will AI replace marketing teams?", "a": "AI tools speed up repetitive work, but strategy, positioning and final judgement still need people. Most teams use AI to draft and test faster." },
+      { "q": "What should I check before buying an AI marketing tool?", "a": "Check integrations with your existing tools, data and privacy terms, how results are measured, and how the price changes as your audience or team grows." }
+    ]
+  },
+  "ai-seo-tools": {
+    "seo_title": "Best AI SEO Tools: Keywords, Content and Audits",
+    "seo_description": "Compare AI SEO tools for keyword research, content optimisation, technical audits, rank tracking, backlinks and local SEO. Features and pricing models.",
+    "intro": "AI SEO tools help you research what people search for, plan and optimise content, and find technical problems on your site. This category covers keyword research, content optimisation, technical SEO and audits, rank tracking, backlink and competitor analysis, local SEO and SEO automation.\n\nCompare the size and freshness of each tool's data, the search engines and countries it covers, how its recommendations are explained, and whether its limits fit the number of sites and keywords you manage.",
+    "faqs": [
+      { "q": "Can AI tools improve my search rankings?", "a": "They can help you find opportunities and fix problems, but rankings depend on useful content, a technically sound site and links from other sites. No tool can guarantee rankings." },
+      { "q": "What is content optimisation?", "a": "Content optimisation tools compare your page with pages that rank for a topic and suggest subjects, questions and structure to cover so the page answers searchers better." },
+      { "q": "Do I need a technical SEO audit tool?", "a": "For larger sites, yes: audit tools crawl your pages and report broken links, missing tags, slow pages and indexing problems that are hard to find by hand." }
+    ]
+  },
+  "ai-coding-developer-tools": {
+    "seo_title": "Best AI Coding Tools and Developer Assistants",
+    "seo_description": "Compare AI coding assistants, code generation, code review, testing, DevOps, documentation and no-code tools. Verified features and pricing models.",
+    "intro": "AI coding and developer tools help you write, understand, review and ship software. The category includes coding assistants inside your editor, code generation, code review, testing and QA, DevOps, backend and API tools, documentation, and no-code and low-code builders.\n\nCompare which languages and editors a tool supports, whether it can use your repository as context, how it handles private code and licensing, and how its usage limits fit your team. Always review and test AI-generated code before merging it.",
+    "faqs": [
+      { "q": "What is an AI coding assistant?", "a": "An AI coding assistant suggests or writes code from comments and context, explains unfamiliar code, and helps with refactoring, tests and debugging, usually inside your editor." },
+      { "q": "Is AI-generated code safe to use?", "a": "Treat it like code from a new colleague: review it, test it and check licences and security before merging. Assistants can produce plausible but wrong code." },
+      { "q": "Can non-developers build apps with AI?", "a": "No-code and low-code tools let non-developers build simple apps and automations, and AI features make it easier to describe what you want in plain language." }
+    ]
+  },
+  "ai-design-ui-ux-tools": {
+    "seo_title": "Best AI Design Tools for UI, UX and Branding",
+    "seo_description": "Compare AI design tools for UI design, UX research, prototyping, websites, design automation, branding and collaboration. Features and pricing models.",
+    "intro": "AI design tools speed up the work of designers and help non-designers produce professional results. This category covers UI and web design, UX research, prototyping, design automation, brand and graphic design, design systems and collaborative design platforms.\n\nCompare how well a tool fits your existing workflow and file formats, how much control you keep over layouts and brand assets, collaboration features for your team, and what export options its plans include.",
+    "faqs": [
+      { "q": "Can AI design a website or app interface?", "a": "AI tools can generate layouts, components and first drafts of screens from a description, which designers then refine. Final usability still needs human testing." },
+      { "q": "How does AI help with UX research?", "a": "AI can help summarise interviews and survey responses, cluster feedback into themes and draft research reports, saving time on analysis." },
+      { "q": "Can I keep my brand consistent with AI design tools?", "a": "Many tools let you store brand colours, fonts and logos so generated designs follow your brand guidelines." }
+    ]
+  },
+  "ai-social-media-tools": {
+    "seo_title": "Best AI Social Media Tools: Content and Scheduling",
+    "seo_description": "Compare AI social media tools for content creation, scheduling, management, analytics, automation, ads and creator work. Features and pricing models.",
+    "intro": "AI social media tools help you plan, create, publish and measure posts across platforms. The category includes content creation, scheduling and management, analytics, automation, social advertising, engagement and tools for influencers and creators.\n\nCompare which networks each tool supports, how it handles approvals for teams, the depth of its analytics, and how pricing scales with the number of accounts and users.",
+    "faqs": [
+      { "q": "What can AI do for social media?", "a": "AI can draft posts and captions, suggest hashtags, repurpose long content into short posts, recommend posting times and summarise performance." },
+      { "q": "Can AI schedule posts automatically?", "a": "Scheduling tools publish posts at set times across networks, and some use AI to suggest when your audience is most active." },
+      { "q": "Will AI-written posts sound like my brand?", "a": "Many tools let you describe or train your brand voice, but you should still review posts before they go live." }
+    ]
+  },
+  "ai-business-tools": {
+    "seo_title": "Best AI Business Tools for CRM, Sales and Support",
+    "seo_description": "Compare AI business tools for business intelligence, customer relationships, sales and revenue, and customer support. Verified features and pricing models.",
+    "intro": "AI business tools help companies understand their data, manage customer relationships, sell more effectively and support customers at scale. This category covers business intelligence, CRM, sales and revenue tools and customer support platforms. Many of them add AI to systems teams already rely on, such as dashboards, pipelines and help desks.\n\nCompare integrations with the systems you already use, data security and compliance, the quality of reporting, and how pricing grows with seats, contacts or conversations.",
+    "faqs": [
+      { "q": "How is AI used in CRM and sales?", "a": "AI in CRM and sales tools can summarise customer history, score leads, draft follow-up emails and forecast revenue from pipeline data." },
+      { "q": "Can AI handle customer support?", "a": "AI support tools can answer common questions, route tickets and suggest replies to agents, while people handle complex or sensitive cases." },
+      { "q": "What should I check for business AI tools?", "a": "Check data security and compliance, integrations, admin controls, and whether the tool's results can be explained to your team." }
+    ]
+  },
+  "ai-office-tools": {
+    "seo_title": "Best AI Office Tools for Documents and Productivity",
+    "seo_description": "Compare AI office tools for documents, spreadsheets, presentations, meetings, email, note-taking, file management and automation. Features and pricing.",
+    "intro": "AI office tools take repetitive work out of everyday tasks. This category covers document creation, spreadsheets and data, presentations, meeting and scheduling assistants, email and communication, note-taking, file management and office automation.\n\nCompare how well a tool works with the apps your team already uses, how it handles shared and confidential files, and whether its free plan or trial covers your regular workload.",
+    "faqs": [
+      { "q": "What can AI office tools automate?", "a": "Common examples are drafting documents and emails, summarising meetings, building presentations from an outline, analysing spreadsheet data and connecting apps so tasks run automatically." },
+      { "q": "Can AI create presentations?", "a": "Presentation tools can turn a prompt or document into slides with layouts and visuals, which you then edit." },
+      { "q": "Are AI note-takers accurate?", "a": "They are useful for capturing and summarising discussions, but accuracy depends on audio quality, so review notes before sharing them." }
+    ]
+  },
+  "ai-resume-hr-tools": {
+    "seo_title": "Best AI Resume and HR Tools for Jobs and Hiring",
+    "seo_description": "Compare AI resume builders, cover letter, interview, ATS, hiring, HR analytics and employee engagement tools. Verified features and pricing models.",
+    "intro": "AI resume and HR tools help job seekers present themselves well and help employers hire and support people more efficiently. For candidates there are resume builders, cover letter writers and interview practice tools; for HR teams there are applicant tracking, screening, hiring, HR analytics, employee engagement and learning tools.\n\nJob seekers should check that their resume stays accurate and personal. Employers should check fairness, transparency and data-protection rules before using AI in hiring decisions.",
+    "faqs": [
+      { "q": "Can AI write my resume?", "a": "AI resume tools can draft and format your resume from your experience and tailor it to a job description. Make sure every claim is true and specific to you." },
+      { "q": "What is an ATS?", "a": "An applicant tracking system (ATS) helps employers collect, filter and manage job applications. Some tools help candidates check how a resume reads in an ATS." },
+      { "q": "Is AI fair in hiring?", "a": "AI can reflect biases in its data. Employers should keep people involved in decisions, test tools for fairness and follow local employment and privacy laws." }
+    ]
+  },
+  "ai-education-learning-tools": {
+    "seo_title": "Best AI Education Tools for Learning and Teaching",
+    "seo_description": "Compare AI education tools for tutoring, homework help, languages, exam prep, course creation, research, classrooms and grading. Features and pricing.",
+    "intro": "AI education tools support learners and teachers. For learners there are tutoring and homework help, language learning, exam preparation, study and research assistants; for educators there are course creation, classroom management, assessment and grading, and learning analytics tools.\n\nCompare how a tool explains its answers rather than just giving them, the subjects and levels it covers, its privacy protections for students, and whether it fits your school's or institution's policies on AI.",
+    "faqs": [
+      { "q": "Can AI help me study?", "a": "AI study tools can explain topics step by step, quiz you, summarise reading and build study plans. Use them to understand material, not to replace your own work." },
+      { "q": "How do teachers use AI?", "a": "Teachers use AI to draft lesson plans and quizzes, give feedback on writing, differentiate materials for different levels and save time on administration." },
+      { "q": "Is student data safe with AI tools?", "a": "Check each tool's privacy policy and whether it meets your school's data-protection requirements before using it with students." }
+    ]
+  },
+  "ai-e-commerce-tools": {
+    "seo_title": "Best AI E-commerce Tools for Online Stores",
+    "seo_description": "Compare AI e-commerce tools for product listings, pricing, inventory, customer support, personalisation, analytics and store automation. Features and pricing.",
+    "intro": "AI e-commerce tools help online sellers write better listings, set prices, manage stock, support customers and personalise shopping. The category covers product intelligence, listing and content tools, pricing and revenue, inventory and fulfilment, customer support, personalisation and recommendations, analytics, conversion optimisation and automation.\n\nCompare integrations with your store platform and marketplaces, how much control you keep over automated changes such as prices, and how costs scale with orders or products.",
+    "faqs": [
+      { "q": "How can AI help an online store?", "a": "AI can write product descriptions, recommend products to shoppers, answer customer questions, forecast demand and suggest prices." },
+      { "q": "Do AI e-commerce tools work with my store platform?", "a": "Many integrate with popular store platforms and marketplaces. Check the integrations listed on each tool's official website." },
+      { "q": "Should I let AI change prices automatically?", "a": "Dynamic pricing can help, but set limits and review changes so automated prices stay within your margins and policies." }
+    ]
+  }
+}

@@ -97,6 +97,7 @@ export async function authenticate(
  */
 export function checkCsrf(
   request: Request,
+  opts: { allowImage?: boolean } = {},
 ): { ok: true } | { ok: false; status: 403 | 415; code: string } {
   const method = request.method.toUpperCase();
   if (method === "GET" || method === "HEAD") return { ok: true };
@@ -110,7 +111,9 @@ export function checkCsrf(
     return { ok: false, status: 403, code: "csrf_origin_missing" };
   }
   const type = request.headers.get("content-type") ?? "";
-  if (!/^application\/json(\s*;|$)/i.test(type))
+  // JSON everywhere; the image upload endpoint alone accepts a raw image body (same header and origin checks).
+  const image = opts.allowImage === true && /^image\/(png|jpeg|webp|avif)$/i.test(type);
+  if (!image && !/^application\/json(\s*;|$)/i.test(type))
     return { ok: false, status: 415, code: "json_required" };
   return { ok: true };
 }

@@ -59,10 +59,48 @@
   --border: oklch(0.92 0.015 285);
   --input: oklch(0.92 0.015 285);
   --ring: oklch(0.56 0.21 278);
-  --gradient-hero: linear-gradient(180deg, var(--background) 0%, var(--lavender) 35%, var(--primary-glow) 100%);
+  --gradient-hero: linear-gradient(
+    180deg,
+    var(--background) 0%,
+    var(--lavender) 35%,
+    var(--primary-glow) 100%
+  );
   --gradient-primary: linear-gradient(135deg, var(--primary), var(--primary-glow));
   --shadow-soft: 0 10px 30px -12px color-mix(in oklab, var(--primary) 25%, transparent);
   --shadow-card: 0 1px 2px color-mix(in oklab, var(--foreground) 6%, transparent);
+  /* Tool cards sit on a faint tint with a slightly stronger edge, so they never merge into the white page. */
+  --surface: oklch(0.985 0.008 285);
+  --surface-border: oklch(0.885 0.025 285);
+}
+
+/* One page width everywhere: centred, up to 100rem (1,600 px), with gutters that grow with the screen
+   (16 / 24 / 32 / 40 px). The header uses the same gutters, so its edges line up with the content. */
+@utility page-x {
+  padding-inline: 1rem;
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+  @media (width >= 80rem) {
+    padding-inline: 2.5rem;
+  }
+}
+@utility page-container {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 100rem;
+  padding-inline: 1rem;
+  @media (width >= 40rem) {
+    padding-inline: 1.5rem;
+  }
+  @media (width >= 64rem) {
+    padding-inline: 2rem;
+  }
+  @media (width >= 80rem) {
+    padding-inline: 2.5rem;
+  }
 }
 
 @utility bg-hero {
@@ -78,6 +116,88 @@
   box-shadow: var(--shadow-card);
 }
 
+/*
+ * Repeated card markup. Listing pages render hundreds of these cards; spelling the utilities out on every element made
+ * class attributes about half of each page's HTML (and of its server-render time). These classes apply exactly the same
+ * utilities, so the design is unchanged.
+ */
+@layer components {
+  .tool-card {
+    @apply flex flex-col rounded-2xl border p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft;
+    background: var(--surface);
+    border-color: var(--surface-border);
+  }
+  .tool-card-logo {
+    @apply grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-lavender font-display font-bold text-primary;
+  }
+  .tool-card-chip {
+    @apply rounded-full px-2.5 py-1 text-xs;
+  }
+  /* Explore and TryAI: the same size and the same neutral look. One of them is highlighted at a time: Explore while the
+     pointer (or focus) is anywhere on the card, TryAI instead while the pointer is on it (or it has focus). */
+  .tool-card-cta,
+  .tool-card-try {
+    @apply inline-flex h-9 flex-1 basis-0 items-center justify-center rounded-xl border border-border bg-background text-sm font-semibold text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1;
+  }
+  .tool-card:hover .tool-card-cta,
+  .tool-card:focus-within .tool-card-cta,
+  .tool-card .tool-card-try:hover,
+  .tool-card .tool-card-try:focus-visible {
+    @apply border-primary bg-primary text-primary-foreground;
+  }
+  .tool-card:has(.tool-card-try:hover) .tool-card-cta,
+  .tool-card:has(.tool-card-try:focus-visible) .tool-card-cta {
+    @apply border-border bg-background text-muted-foreground;
+  }
+  /* Listing filters: each group (categories / subcategories, pricing) gets its own small heading; the pricing group
+     sits below the first one, separated by space and a hairline, with no container. */
+  .filter-heading {
+    @apply mb-2.5 text-xs font-bold uppercase tracking-wider text-muted-foreground;
+  }
+  .filter-section {
+    @apply mt-6 border-t border-border/60 pt-5;
+  }
+  /* Pricing model (only shown when recorded for the tool): one neutral pill for all four models, secondary to the
+     tool's logo and name. data-pricing stays on the element for tests and future use. */
+  .tool-card-price {
+    @apply inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-slate-800 shadow-[0_1px_2px_rgb(15_23_42/0.06)];
+  }
+  .sub-card {
+    @apply relative flex min-h-44 flex-col rounded-3xl border border-primary/10 bg-card p-5 shadow-[0_14px_30px_-22px_color-mix(in_oklab,var(--primary)_55%,transparent)] transition duration-200 hover:-translate-y-1 hover:border-primary/50 hover:shadow-[0_24px_40px_-22px_color-mix(in_oklab,var(--primary)_70%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+  .sub-card-dot {
+    @apply grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-xs font-bold text-primary shadow-sm ring-2 ring-white outline outline-1 outline-primary/15;
+  }
+  .sub-card-more {
+    @apply grid h-9 w-9 place-items-center rounded-full bg-accent text-[11px] font-bold text-primary ring-2 ring-white;
+  }
+  .sub-card-arrow {
+    @apply grid h-9 w-9 place-items-center rounded-full bg-accent text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground;
+  }
+  /* Tool page and footer (2,200+ pre-built pages). */
+  .tool-section {
+    @apply rounded-3xl border border-primary/10 bg-card p-5 shadow-card sm:p-7;
+  }
+  .tool-section-title {
+    @apply text-xl font-extrabold tracking-tight sm:text-2xl;
+  }
+  .tool-logo-frame {
+    @apply grid shrink-0 place-items-center overflow-hidden rounded-2xl bg-white font-bold text-primary shadow-card ring-1 ring-primary/15;
+  }
+  .tool-alt-card {
+    @apply flex items-center gap-3 rounded-2xl border border-primary/10 bg-background p-3 transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+  .tool-chip-link {
+    @apply rounded-full border border-primary/15 bg-background px-4 py-1.5 text-sm font-semibold hover:border-primary/40 hover:text-primary;
+  }
+  .tool-step-number {
+    @apply grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-primary text-xs font-bold text-primary-foreground;
+  }
+  .footer-link {
+    @apply text-sm text-muted-foreground hover:text-primary;
+  }
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -87,7 +207,9 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
   }
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     font-family: var(--font-display);
     letter-spacing: 0;
   }
@@ -98,7 +220,9 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 @utility bg-hero-flow {
@@ -108,7 +232,10 @@ html {
   background: linear-gradient(180deg, #dad7ff 0%, #918dff 55%, #7973fb 100%);
 }
 @utility bg-dots {
-  background-image: radial-gradient(color-mix(in oklab, var(--primary) 12%, transparent) 1.2px, transparent 1.3px);
+  background-image: radial-gradient(
+    color-mix(in oklab, var(--primary) 12%, transparent) 1.2px,
+    transparent 1.3px
+  );
   background-size: 26px 26px;
 }
 
@@ -127,10 +254,107 @@ html {
 }
 
 @keyframes float-tile {
-  0%, 100% { transform: translateY(0) rotate(var(--tile-rot, 0deg)); }
-  50% { transform: translateY(-12px) rotate(var(--tile-rot, 0deg)); }
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--tile-rot, 0deg));
+  }
+  50% {
+    transform: translateY(-12px) rotate(var(--tile-rot, 0deg));
+  }
 }
-.float-tile { animation: float-tile 6s ease-in-out infinite; transform: rotate(var(--tile-rot, 0deg)); }
+.float-tile {
+  animation: float-tile 6s ease-in-out infinite;
+  transform: rotate(var(--tile-rot, 0deg));
+}
 @media (prefers-reduced-motion: reduce) {
-  .float-tile { animation: none; }
+  .float-tile {
+    animation: none;
+  }
+}
+
+/* AI Agents (coming soon): a slow drifting glow and a few floating icons. All motion stops for prefers-reduced-motion. */
+.agents-hero {
+  background: linear-gradient(
+    180deg,
+    var(--background) 0%,
+    var(--secondary) 60%,
+    var(--background) 100%
+  );
+}
+.agents-glow {
+  position: absolute;
+  inset: -20% -10%;
+  z-index: -1;
+  background:
+    radial-gradient(
+      40% 35% at 30% 40%,
+      color-mix(in oklab, var(--primary) 28%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      35% 30% at 70% 55%,
+      color-mix(in oklab, var(--primary-glow) 35%, transparent),
+      transparent 70%
+    );
+  filter: blur(40px);
+  animation: agents-drift 14s ease-in-out infinite alternate;
+}
+.agents-float {
+  position: absolute;
+  display: grid;
+  height: 3.25rem;
+  width: 3.25rem;
+  place-items: center;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in oklab, var(--primary) 18%, transparent);
+  background: color-mix(in oklab, var(--background) 75%, transparent);
+  color: var(--primary);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(6px);
+  animation: agents-bob 7s ease-in-out infinite;
+}
+.agents-gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.agents-pulse {
+  height: 0.5rem;
+  width: 0.5rem;
+  border-radius: 999px;
+  background: var(--primary);
+  animation: agents-pulse 1.8s ease-out infinite;
+}
+@keyframes agents-drift {
+  from {
+    transform: translate3d(-3%, -2%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(3%, 2%, 0) scale(1.08);
+  }
+}
+@keyframes agents-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -14px;
+  }
+}
+@keyframes agents-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agents-glow,
+  .agents-float,
+  .agents-pulse {
+    animation: none;
+  }
 }

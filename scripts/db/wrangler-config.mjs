@@ -2,14 +2,21 @@
 // src/test/db-config.test.ts.
 //
 // Layout, from Cloudflare's "Worker Previews > Resources and isolation" documentation:
-//   wrangler.jsonc                    top level = PRODUCTION  -> NO d1_databases (no production database exists yet)
+//   wrangler.jsonc                    top level = PRODUCTION  -> d1_databases: only DB -> tryaitools-production
 //                                     previews.d1_databases   -> binding DB -> the PREVIEW database
 //   wrangler.preview-migrations.jsonc top level d1_databases  -> binding PREVIEW_DB -> the SAME preview database;
 //                                     used ONLY by `wrangler d1 migrations/execute` commands, never deployed
-// Previews do not inherit production settings, so a binding left at the top level is a production binding.
+//   wrangler.production-migrations.jsonc  binding PRODUCTION_DB -> the production database; same rules, never deployed
+// Previews do not inherit production settings, so a binding left at the top level is a production binding: it must be
+// exactly the production database, and never the preview one.
 import { PREVIEW_NAME, UUID } from "./guard.mjs";
 
 export const MIGRATIONS_CONFIG_FILE = "wrangler.preview-migrations.jsonc";
+export const PRODUCTION_MIGRATIONS_CONFIG_FILE = "wrangler.production-migrations.jsonc";
+export const PRODUCTION_DB_NAME = "tryaitools-production";
+const sameD1 = (a = [], b = []) =>
+  JSON.stringify(a.map((d) => [d.binding, d.database_name, d.database_id])) ===
+  JSON.stringify(b.map((d) => [d.binding, d.database_name, d.database_id]));
 
 /** Removes // and /* *\/ comments without touching comment-like text inside strings. */
 export function stripJsonc(text) {
@@ -95,18 +102,46 @@ export function planPreviewBinding(cfg, { databaseName, databaseId }) {
 
 const row = (name, ok, detail = "") => ({ name, ok: !!ok, detail });
 
-/** Checks the two committed config files for production isolation. */
-export function validateRepoConfig(cfg, migrations) {
+/**
+ * Checks the committed config files for production isolation. Without `production` (the parsed
+ * wrangler.production-migrations.jsonc) production must have no D1 at all; with it, the top level binds exactly
+ * DB -> that production database, which is never the preview database.
+ */
+export function validateRepoConfig(cfg, migrations, production) {
   const out = [];
   const top = cfg.d1_databases;
-  out.push(
-    row(
-      "wrangler.jsonc (production) has NO top-level d1_databases",
-      !top || top.length === 0,
-      top?.length ? JSON.stringify(top.map((d) => d.database_name)) : "",
-    ),
-  );
   const pv = cfg.previews?.d1_databases?.find((d) => d.binding === "DB");
+  const prod = production?.d1_databases?.find((d) => d.binding === "PRODUCTION_DB");
+  if (!prod)
+    out.push(
+      row(
+        "wrangler.jsonc (production) has NO top-level d1_databases",
+        !top || top.length === 0,
+        top?.length ? JSON.stringify(top.map((d) => d.database_name)) : "",
+      ),
+    );
+  else {
+    out.push(
+      row(
+        `${PRODUCTION_MIGRATIONS_CONFIG_FILE} declares PRODUCTION_DB = ${PRODUCTION_DB_NAME} (UUID, not the preview database, not deployable)`,
+        prod.database_name === PRODUCTION_DB_NAME &&
+          !PREVIEW_NAME.test(prod.database_name) &&
+          UUID.test(prod.database_id ?? "") &&
+          prod.database_id !== pv?.database_id &&
+          production.d1_databases.length === 1 &&
+          !production.name &&
+          !production.main,
+        prod.database_name,
+      ),
+    );
+    out.push(
+      row(
+        "wrangler.jsonc (production) top level binds only DB -> the production database",
+        sameD1(top, [{ ...prod, binding: "DB" }]),
+        top?.length ? JSON.stringify(top.map((d) => `${d.binding}=${d.database_name}`)) : "none",
+      ),
+    );
+  }
   out.push(row("previews.d1_databases binds DB", !!pv));
   out.push(
     row(
@@ -130,7 +165,32 @@ export function validateRepoConfig(cfg, migrations) {
     ),
   );
   out.push(row("no custom domain or routes in wrangler.jsonc", !cfg.routes && !cfg.route));
+  out.push(...mediaRows(cfg, "wrangler.jsonc"));
   return out;
+}
+
+const isPreviewBucket = (b) =>
+  /^[a-z0-9-]+-preview$/.test(String(b?.bucket_name ?? "")) && !/prod/i.test(String(b.bucket_name));
+/**
+ * Image storage (R2) is optional: without a MEDIA binding the admin refuses uploads ("not configured") and everything
+ * else works. When present it is only ever a preview bucket, only under previews; production has no bucket.
+ */
+function mediaRows(cfg, label) {
+  const top = cfg.r2_buckets;
+  const all = cfg.previews?.r2_buckets ?? [];
+  const media = all.filter((b) => b.binding === "MEDIA");
+  return [
+    row(
+      `${label} (production) has NO top-level r2_buckets`,
+      !top || top.length === 0,
+      top?.length ? JSON.stringify(top.map((b) => b.bucket_name)) : "",
+    ),
+    row(
+      `${label} previews.r2_buckets: none (image uploads off), or MEDIA bound to one preview bucket`,
+      media.length <= 1 && all.every(isPreviewBucket),
+      all.length ? all.map((b) => b.bucket_name).join(", ") : "not configured: image uploads off",
+    ),
+  ];
 }
 
 /** Checks the Nitro-generated Worker config (the file Wrangler actually deploys/previews). */
@@ -155,13 +215,37 @@ export function validateGeneratedConfig(gen, repoCfg) {
   );
   out.push(
     row(
-      "generated production (top-level) config has NO d1_databases",
-      !gen.d1_databases || gen.d1_databases.length === 0,
-      gen.d1_databases ? JSON.stringify(gen.d1_databases.map((d) => d.database_name)) : "",
+      "generated production (top-level) d1_databases equal wrangler.jsonc's (none, or only DB -> production)",
+      sameD1(gen.d1_databases, repoCfg.d1_databases) &&
+        !(gen.d1_databases ?? []).some((d) => d.database_id === expected?.database_id),
+      gen.d1_databases ? JSON.stringify(gen.d1_databases.map((d) => d.database_name)) : "none",
     ),
   );
   out.push(row("Worker name is still pixel-perfect", gen.name === "pixel-perfect", gen.name));
   out.push(row("no custom domain or routes in generated config", !gen.routes && !gen.route));
+  out.push(...mediaRows(gen, "generated config"));
+  const want = repoCfg.previews?.r2_buckets?.find((b) => b.binding === "MEDIA")?.bucket_name;
+  out.push(
+    row(
+      "generated MEDIA bucket equals the one in wrangler.jsonc (or both have none)",
+      gen.previews?.r2_buckets?.find((b) => b.binding === "MEDIA")?.bucket_name === want,
+    ),
+  );
+  // Static build (scripts/static/build-gate.mjs): the gate is the entry and runs first for pages, never for /assets.
+  if (gen.main === "gate.mjs") {
+    const rwf = gen.assets?.run_worker_first;
+    out.push(
+      row(
+        "static build: gate runs first for page routes but not for /assets/*",
+        Array.isArray(rwf) &&
+          rwf.includes("/*") &&
+          rwf.includes("!/assets/*") &&
+          // uploaded images (/media/<id>.<ext>) are answered by the gate: no wildcard file-type exclusion may hide them
+          !rwf.some((r) => /^!\/\*/.test(r)),
+        JSON.stringify(rwf ?? null),
+      ),
+    );
+  }
   return out;
 }
 

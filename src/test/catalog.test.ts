@@ -174,8 +174,14 @@ describe("D1 reader", () => {
 
   it("category pages, home summary, site summary and sitemap match the JSON site minus flagged rows", async () => {
     const e = expected();
-    for (const c of e.categories)
-      expect(await reader.categoryPage(c.slug)).toEqual(categoryPageOf(e, c.slug));
+    for (const c of e.categories) {
+      // D1 adds landing copy, top picks and the distinct total; the shared fields must match the JSON site exactly
+      const { topPicks, totalTools, landing, ...shared } = (await reader.categoryPage(c.slug))!;
+      expect(shared).toEqual(categoryPageOf(e, c.slug));
+      expect(topPicks!.every((t) => shared.tools.some((x) => x.slug === t.slug))).toBe(true);
+      expect(totalTools).toBe(e.tools.length);
+      expect(landing).toEqual({ seoTitle: null, seoDescription: null, intro: null, faqs: [] });
+    }
     expect(await reader.categoryPage("nope")).toBeNull();
     expect(await reader.browse()).toEqual(browseOf(e));
     expect(await reader.summary()).toEqual(summaryOf(e));
@@ -229,8 +235,12 @@ describe("D1 reader", () => {
     expect(normalizeToolsQuery({ q: "  ChatGPT ", page: 0 })).toEqual({
       q: "chatgpt",
       category: "",
+      pricing: "all",
+      tag: "",
       page: 1,
     });
+    expect(normalizeToolsQuery({ pricing: "free_trial" }).pricing).toBe("free_trial");
+    expect(normalizeToolsQuery({ pricing: "cheap" as any }).pricing).toBe("all");
     expect(normalizeToolsQuery({ q: "x".repeat(500), page: 10_000 }).q).toHaveLength(100);
     expect(normalizeToolsQuery({ page: 10_000 }).page).toBe(1000);
     expect(normalizeToolsQuery({ page: "abc" as any }).page).toBe(1);
@@ -287,7 +297,7 @@ describe("D1 reader", () => {
     await reader.toolPage("chatgpt");
     await reader.toolPage("no-such-tool");
     const toolQueries = log.filter((l) => /\bFROM tools\b/.test(l.sql));
-    expect(toolQueries.length).toBeGreaterThan(8);
+    expect(toolQueries.length).toBeGreaterThan(6);
     for (const l of toolQueries) expect(l.sql, l.sql).toContain(PUBLIC_TOOLS);
   });
 
@@ -302,21 +312,28 @@ describe("D1 reader", () => {
     };
   };
 
+  // Two costs are traded here. Rows RETURNED cost Worker CPU; rows READ count against the D1 daily quota (an aggregate
+  // such as GROUP BY or a window function reads the table about twice, and every isolate pays it again after each change).
+  // So: requests on every page (summary) or per page view stay at a few hundred returned rows; the listing aggregates
+  // (home, /categories, /tools totals) are derived from ONE scan of the light columns of public tools, cached per version
+  // (about 2 ms of V8 time to handle, once), instead of three aggregates reading ~7x as many D1 rows.
   it("no public request reads more than a few hundred rows (never the 2,225-row catalogue)", async () => {
     const e = expected();
     const biggest = Math.max(...e.categories.map((c) => e.toolsIn(c.name).length));
+    const LIST = e.tools.length + 100; // one scan of public tools (light columns) + the category list
     expect(biggest).toBeLessThanOrEqual(230);
     const budgets: [string, () => Promise<unknown>, number][] = [
       ["summary", () => reader.summary(), 200],
-      ["browse (home, /categories)", () => reader.browse(), 700],
+      ["browse (home, /categories)", () => reader.browse(), LIST],
       ["sitemap", () => reader.sitemap(), 100],
-      ["/tools page 1", () => reader.toolsPage(normalizeToolsQuery({})), 250],
-      ["/tools page 30", () => reader.toolsPage(normalizeToolsQuery({ page: 30 })), 250],
+      ["/tools page 1", () => reader.toolsPage(normalizeToolsQuery({})), LIST],
+      ["/tools page 30", () => reader.toolsPage(normalizeToolsQuery({ page: 30 })), LIST],
       ["/tools search", () => reader.toolsPage(normalizeToolsQuery({ q: "ai" })), 250],
       [
+        // its own tools (<= ~230 rows) plus the sidebar counts, which come from the same cached scan as home
         "category page (largest)",
         () => reader.categoryPage("ai-education-learning-tools"),
-        biggest + 40,
+        LIST + biggest,
       ],
       ["tool page (shared subcategory)", () => reader.toolPage("chatgpt"), 2 * biggest + 40],
       [
@@ -328,9 +345,12 @@ describe("D1 reader", () => {
     ];
     for (const [label, fn, budget] of budgets) {
       resetVersionedCache(); // measure the cold (uncached) cost
-      const { total, max } = await rowsFor(fn);
+      const { total, max, log: queries } = await rowsFor(fn);
       expect(total, label).toBeLessThanOrEqual(budget);
-      expect(max, label).toBeLessThan(e.tools.length);
+      if (budget < LIST) expect(max, label).toBeLessThan(e.tools.length); // the shared scan is allowed above
+      // the one scan returns only light columns, never the content columns of the whole catalogue
+      for (const q of queries)
+        if (q.rows > 300) expect(q.sql, label).not.toMatch(/overview|features|tagline/);
     }
   });
 

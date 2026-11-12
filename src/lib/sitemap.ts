@@ -19,8 +19,10 @@ const STATIC_PAGES: SitemapEntry[] = [
   { path: "/affiliate-disclosure", changefreq: "yearly", priority: 0.3 },
 ];
 
-export const sitemapEntries = (data: SitemapData): SitemapEntry[] => [
+/** `content`: the content-section entries (src/static/sitemap.ts contentEntries), listed after the fixed pages. */
+export const sitemapEntries = (data: SitemapData, content: SitemapEntry[] = []): SitemapEntry[] => [
   ...STATIC_PAGES,
+  ...content.map(({ path, changefreq, priority }) => ({ path, changefreq, priority })),
   ...data.categorySlugs.map((slug): SitemapEntry => ({
     path: `/categories/${slug}`,
     changefreq: "weekly",

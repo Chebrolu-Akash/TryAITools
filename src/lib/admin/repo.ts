@@ -1,5 +1,13 @@
 import * as z from "zod";
-import { auditStep, catalogVersionStep, HttpError, readSafe, writeBatch, type AdminDb } from "./db";
+import {
+  auditStep,
+  catalogVersionStep,
+  contentVersionStep,
+  HttpError,
+  readSafe,
+  writeBatch,
+  type AdminDb,
+} from "./db";
 import {
   isSafeHttpUrl,
   type blogActionSchema,
@@ -16,14 +24,14 @@ import {
 // All SQL here is parameterized: user input only ever reaches D1 as a bound value. Column lists and
 // ORDER BY clauses are fixed in code, never built from request data.
 
-type Row = Record<string, unknown>;
-type Ctx = { db: AdminDb | null; actor: string; now: string };
+export type Row = Record<string, unknown>;
+export type Ctx = { db: AdminDb | null; actor: string; now: string };
 
-const need = (db: AdminDb | null): AdminDb => {
+export const need = (db: AdminDb | null): AdminDb => {
   if (!db) throw new HttpError(503, "database_unavailable", "The database is not available.");
   return db;
 };
-const parseJson = (v: unknown): unknown => {
+export const parseJson = (v: unknown): unknown => {
   if (typeof v !== "string") return null;
   try {
     return JSON.parse(v);
@@ -31,14 +39,14 @@ const parseJson = (v: unknown): unknown => {
     return null;
   }
 };
-const likePattern = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-const clampInt = (v: unknown, min: number, max: number, dflt: number) => {
+export const likePattern = (q: string) => `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+export const clampInt = (v: unknown, min: number, max: number, dflt: number) => {
   const n = Number(v);
   return Number.isInteger(n) ? Math.min(max, Math.max(min, n)) : dflt;
 };
 
-type DeleteInput = z.infer<typeof deleteSchema>;
-const checkConfirm = (slug: string, input: DeleteInput) => {
+export type DeleteInput = z.infer<typeof deleteSchema>;
+export const checkConfirm = (slug: string, input: DeleteInput) => {
   if (input.confirm !== slug)
     throw new HttpError(422, "confirm_mismatch", "Type the slug exactly to confirm deletion.", {
       confirm: "Does not match the slug",
@@ -51,10 +59,11 @@ const checkConfirm = (slug: string, input: DeleteInput) => {
  * row makes the first statement change nothing, which writeBatch() reports as a 409 conflict; nothing is deleted.
  * `table` and `guardSql` are fixed strings from this file, never request data.
  */
-async function deleteGuarded(
+export async function deleteGuarded(
   ctx: Ctx,
   d: AdminDb,
-  table: "tools" | "categories" | "blog_posts",
+  table:
+    "tools" | "categories" | "blog_posts" | "courses" | "gadgets" | "guest_articles" | "tutorials",
   guardSql: string,
   entity: { type: string; action: string; slug: string; summary: string },
   updatedAt: string,
@@ -79,7 +88,9 @@ async function deleteGuarded(
       params: [entity.slug, updatedAt],
       expectChanges: 1,
     },
-    ...(table === "blog_posts" ? [] : [catalogVersionStep(ctx.now)]),
+    table === "tools" || table === "categories"
+      ? catalogVersionStep(ctx.now)
+      : contentVersionStep(ctx.now),
   ]);
   return { deleted: true, slug: entity.slug };
 }
@@ -122,13 +133,13 @@ export async function getStats(db: AdminDb | null) {
 // ---------------------------------------------------------------- tools
 
 const TOOL_LIST_COLS =
-  "t.id, t.slug, t.name, t.url, t.category_id, c.name AS category_name, t.subcategory, t.status, t.indexing, t.needs_review, t.import_issue, t.content_source, t.updated_at";
+  "t.id, t.slug, t.name, t.url, t.category_id, c.name AS category_name, t.subcategory, t.status, t.indexing, t.needs_review, t.import_issue, t.content_source, t.review_status, t.url_status, t.updated_at";
 
-export async function listTools(db: AdminDb | null, p: Record<string, string | undefined>) {
-  const d = need(db);
+/** The WHERE clause of the tools list, shared by the paginated list and "select every matching tool". */
+export function toolFilter(p: Record<string, string | undefined>) {
   const where: string[] = [];
   const params: unknown[] = [];
-  const q = (p.q ?? "").trim().slice(0, 100);
+  const q = (p["q"] ?? "").trim().slice(0, 100);
   if (q) {
     where.push(
       "(t.name LIKE ? ESCAPE '\\' OR t.slug LIKE ? ESCAPE '\\' OR t.url LIKE ? ESCAPE '\\')",
@@ -136,37 +147,58 @@ export async function listTools(db: AdminDb | null, p: Record<string, string | u
     const pat = likePattern(q);
     params.push(pat, pat, pat);
   }
-  if (p.status && ["draft", "review", "published", "archived"].includes(p.status)) {
+  if (p["status"] && ["draft", "review", "published", "archived"].includes(p["status"])) {
     where.push("t.status = ?");
-    params.push(p.status);
+    params.push(p["status"]);
   }
-  if (p.indexing && ["index", "noindex"].includes(p.indexing)) {
+  if (p["indexing"] && ["index", "noindex"].includes(p["indexing"])) {
     where.push("t.indexing = ?");
-    params.push(p.indexing);
+    params.push(p["indexing"]);
   }
-  if (p.review === "1") where.push("t.needs_review = 1");
-  if (p.category && p.category.length <= 80) {
-    where.push("t.category_id = ?");
-    params.push(p.category);
+  if (p["review"] === "1") where.push("t.needs_review = 1");
+  if (
+    p["review_status"] &&
+    ["unreviewed", "draft_ready", "reviewed", "needs_manual"].includes(p["review_status"])
+  ) {
+    where.push("t.review_status = ?");
+    params.push(p["review_status"]);
   }
-  const pageSize = clampInt(p.pageSize, 1, 100, 25);
-  const page = clampInt(p.page, 1, 100000, 1);
-  const w = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  if (p["category"] && p["category"].length <= 80) {
+    // the primary category, or an additional category membership
+    where.push(
+      "(t.category_id = ? OR t.id IN (SELECT tool_id FROM tool_categories WHERE category_id = ?))",
+    );
+    params.push(p["category"], p["category"]);
+  }
+  if (p["subcategory"] && p["subcategory"].length <= 120) {
+    where.push("t.subcategory = ?");
+    params.push(p["subcategory"]);
+  }
+  return { where: where.length ? `WHERE ${where.join(" AND ")}` : "", params };
+}
+
+export async function listTools(db: AdminDb | null, p: Record<string, string | undefined>) {
+  const d = need(db);
+  const { where: w, params } = toolFilter(p);
+  const pageSize = clampInt(p["pageSize"], 1, 100, 25);
+  const page = clampInt(p["page"], 1, 100000, 1);
   return readSafe(async () => {
-    const total =
-      (
-        await d
-          .prepare(`SELECT count(*) AS n FROM tools t ${w}`)
-          .bind(...params)
-          .first<{ n: number }>()
-      )?.n ?? 0;
-    const rows = await d
-      .prepare(
-        `SELECT ${TOOL_LIST_COLS} FROM tools t JOIN categories c ON c.id = t.category_id ${w} ORDER BY t.sort_order, t.id LIMIT ? OFFSET ?`,
-      )
-      .bind(...params, pageSize, (page - 1) * pageSize)
-      .all<Row>();
-    return { items: rows.results, total, page, pageSize };
+    // Only the page's rows are joined to their category (joining before the LIMIT looked up a category for every tool).
+    const [count, rows] = await Promise.all([
+      d
+        .prepare(`SELECT count(*) AS n FROM tools t ${w}`)
+        .bind(...params)
+        .first<{ n: number }>(),
+      d
+        .prepare(
+          `SELECT ${TOOL_LIST_COLS} FROM (
+             SELECT * FROM tools t ${w} ORDER BY t.sort_order, t.id LIMIT ? OFFSET ?
+           ) t JOIN categories c ON c.id = t.category_id ORDER BY t.sort_order, t.id`,
+        )
+        .bind(...params, pageSize, (page - 1) * pageSize)
+        .all<Row>(),
+    ]);
+    return { items: rows.results, total: count?.n ?? 0, page, pageSize };
   });
 }
 
@@ -178,6 +210,7 @@ const TOOL_JSON_COLS = [
   "steps",
   "tips",
   "platforms",
+  "pricing_plans",
 ] as const;
 function shapeTool(r: Row): Row {
   const out: Row = { ...r };
@@ -217,6 +250,9 @@ const TOOL_EDIT_COLS = [
   "tips",
   "pricing_note",
   "pricing_source",
+  "pricing_model",
+  "pricing_plans",
+  "pricing_checked_at",
   "platforms",
   "seo_title",
   "seo_description",
@@ -224,6 +260,17 @@ const TOOL_EDIT_COLS = [
   "og_image_url",
   "indexing",
 ] as const;
+/** The page copy that content_source = 'admin' switches on (the tool page then uses these stored values). */
+const COPY_COLS = new Set<string>([
+  "tagline",
+  "overview",
+  "best_for",
+  "features",
+  "pros",
+  "limits",
+  "steps",
+  "tips",
+]);
 const jsonOrNull = (v: unknown) => (v === null || v === undefined ? null : JSON.stringify(v));
 const toolValues = (i: Row): unknown[] =>
   TOOL_EDIT_COLS.map((k) =>
@@ -336,15 +383,25 @@ export async function updateTool(ctx: Ctx, slug: string, input: z.infer<typeof t
   if (!existing) throw new HttpError(404, "not_found", "Tool not found.");
   checkIndexing(existing.status, input.indexing);
   await checkCategory(d, input.category_id, input.subcategory ?? null, existing);
+  const values = toolValues(input);
+  // A save counts as a content edit (content_source = 'admin', which makes the page use the stored best-for, steps and
+  // tips) only when the page copy itself changed. Saving pricing, the website URL, SEO fields and so on leaves the page's
+  // copy exactly as it was.
+  const n = (v: unknown) => (v === undefined || v === "" ? null : v);
+  const same = (a: unknown, b: unknown) =>
+    n(a) === n(b) || (n(a) !== null && String(a) === String(b));
+  const contentEdited = TOOL_EDIT_COLS.some(
+    (c, i) => COPY_COLS.has(c) && !same(values[i], existing[c]),
+  );
   const sets = [
     ...TOOL_EDIT_COLS.map((c) => `${c} = ?`),
-    "content_source = 'admin'",
+    ...(contentEdited ? ["content_source = 'admin'"] : []),
     "updated_at = ?",
   ].join(", ");
   await writeBatch(d, [
     {
       sql: `UPDATE tools SET ${sets} WHERE slug = ? AND updated_at = ?`,
-      params: [...toolValues(input), ctx.now, slug, input.updated_at],
+      params: [...values, ctx.now, slug, input.updated_at],
       expectChanges: 1,
     },
     auditStep(ctx.actor, "tool.update", "tool", slug, `Edited tool "${input.name}"`, ctx.now, {
@@ -473,22 +530,29 @@ export async function deleteTool(ctx: Ctx, slug: string, input: DeleteInput) {
 export async function listCategories(db: AdminDb | null) {
   const d = need(db);
   return readSafe(async () => {
-    const rows = await d
-      .prepare(
-        "SELECT c.*, (SELECT count(*) FROM tools t WHERE t.category_id = c.id) AS tool_count, (SELECT count(*) FROM tools t WHERE t.category_id = c.id AND t.status <> 'archived') AS active_tool_count FROM categories c ORDER BY c.sort_order, c.name",
-      )
-      .all<Row>();
-    const used = await d
-      .prepare(
-        "SELECT category_id AS c, subcategory AS s, count(*) AS n FROM tools WHERE subcategory IS NOT NULL GROUP BY category_id, subcategory",
-      )
-      .all<{ c: string; s: string; n: number }>();
+    // One pass over tools gives every count (it used to be three: two correlated counts per category plus this one).
+    const [rows, used] = await Promise.all([
+      d.prepare("SELECT c.* FROM categories c ORDER BY c.sort_order, c.name").all<Row>(),
+      d
+        .prepare(
+          "SELECT category_id AS c, subcategory AS s, count(*) AS n, COALESCE(sum(status <> 'archived'), 0) AS active FROM tools GROUP BY category_id, subcategory",
+        )
+        .all<{ c: string; s: string | null; n: number; active: number }>(),
+    ]);
     const counts = new Map<string, Record<string, number>>();
-    for (const u of used.results) counts.set(u.c, { ...counts.get(u.c), [u.s]: Number(u.n) });
+    const totals = new Map<string, { all: number; active: number }>();
+    for (const u of used.results) {
+      const t = totals.get(u.c) ?? { all: 0, active: 0 };
+      totals.set(u.c, { all: t.all + Number(u.n), active: t.active + Number(u.active) });
+      if (u.s !== null) counts.set(u.c, { ...counts.get(u.c), [u.s]: Number(u.n) });
+    }
     return {
       items: rows.results.map((r) => ({
         ...r,
+        tool_count: totals.get(r["id"] as string)?.all ?? 0,
+        active_tool_count: totals.get(r["id"] as string)?.active ?? 0,
         subcategories: parseJson(r.subcategories) ?? [],
+        faqs: parseJson(r.faqs) ?? null,
         subcategory_counts: counts.get(r.id as string) ?? {},
       })),
     };
@@ -517,7 +581,7 @@ export async function createCategory(ctx: Ctx, input: z.infer<typeof categoryCre
     });
   await writeBatch(d, [
     {
-      sql: "INSERT INTO categories (id, slug, name, description, subcategories, sort_order, status, indexing, seo_title, seo_description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      sql: "INSERT INTO categories (id, slug, name, description, subcategories, sort_order, status, indexing, seo_title, seo_description, intro, faqs, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       params: [
         input.slug,
         input.slug,
@@ -529,6 +593,8 @@ export async function createCategory(ctx: Ctx, input: z.infer<typeof categoryCre
         input.indexing,
         input.seo_title,
         input.seo_description,
+        input.intro ?? null,
+        input.faqs?.length ? JSON.stringify(input.faqs) : null,
         ctx.now,
         ctx.now,
       ],
@@ -605,7 +671,7 @@ export async function updateCategory(
   }
   await writeBatch(d, [
     {
-      sql: "UPDATE categories SET name = ?, description = ?, subcategories = ?, sort_order = ?, status = ?, indexing = ?, seo_title = ?, seo_description = ?, updated_at = ? WHERE slug = ? AND updated_at = ?",
+      sql: "UPDATE categories SET name = ?, description = ?, subcategories = ?, sort_order = ?, status = ?, indexing = ?, seo_title = ?, seo_description = ?, intro = ?, faqs = ?, updated_at = ? WHERE slug = ? AND updated_at = ?",
       params: [
         input.name,
         input.description,
@@ -615,6 +681,13 @@ export async function updateCategory(
         input.indexing,
         input.seo_title,
         input.seo_description,
+        // fields the form did not send keep their stored values
+        input.intro === undefined ? (existing.intro ?? null) : input.intro,
+        input.faqs === undefined
+          ? (existing.faqs ?? null)
+          : input.faqs?.length
+            ? JSON.stringify(input.faqs)
+            : null,
         ctx.now,
         slug,
         input.updated_at,
@@ -687,8 +760,8 @@ export async function listPosts(db: AdminDb | null, p: Record<string, string | u
     where.push("status = ?");
     params.push(p.status);
   }
-  const pageSize = clampInt(p.pageSize, 1, 100, 25);
-  const page = clampInt(p.page, 1, 100000, 1);
+  const pageSize = clampInt(p["pageSize"], 1, 100, 25);
+  const page = clampInt(p["page"], 1, 100000, 1);
   const w = where.length ? `WHERE ${where.join(" AND ")}` : "";
   return readSafe(async () => {
     const total =
@@ -711,7 +784,12 @@ export async function listPosts(db: AdminDb | null, p: Record<string, string | u
 export async function getPost(db: AdminDb | null, slug: string) {
   const d = need(db);
   const row = await readSafe(() =>
-    d.prepare("SELECT * FROM blog_posts WHERE slug = ?").bind(slug).first<Row>(),
+    d
+      .prepare(
+        "SELECT p.*, m.mime AS cover_mime FROM blog_posts p LEFT JOIN media m ON m.id = p.cover_image_id WHERE p.slug = ?",
+      )
+      .bind(slug)
+      .first<Row>(),
   );
   if (!row) throw new HttpError(404, "not_found", "Post not found.");
   return shapePost(row);
@@ -726,6 +804,8 @@ const POST_COLS = [
   "seo_title",
   "seo_description",
   "canonical_url",
+  "cover_image_id",
+  "cover_alt",
 ] as const;
 const postValues = (i: Row) =>
   POST_COLS.map((k) => (k === "tags" ? JSON.stringify(i.tags ?? []) : (i[k] ?? null)));
@@ -766,6 +846,7 @@ export async function createPost(ctx: Ctx, input: z.infer<typeof blogCreateSchem
       ctx.now,
       { table: "blog_posts", key: "id", value: id, stamp: "created_at" },
     ),
+    contentVersionStep(ctx.now),
   ]);
   return { post: await getPost(d, input.slug), created: true };
 }
@@ -785,6 +866,7 @@ export async function updatePost(ctx: Ctx, slug: string, input: z.infer<typeof b
       value: slug,
       stamp: "updated_at",
     }),
+    contentVersionStep(ctx.now),
   ]);
   return { post: await getPost(d, slug) };
 }
@@ -843,6 +925,7 @@ export async function applyPostAction(
       ctx.now,
       { table: "blog_posts", key: "slug", value: slug, stamp: "updated_at" },
     ),
+    contentVersionStep(ctx.now),
   ]);
   return { post: await getPost(d, slug) };
 }

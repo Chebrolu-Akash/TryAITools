@@ -20,6 +20,32 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * A D1 failure the admin should explain rather than report as a bug: the daily row-read quota of the Free plan, or D1
+ * being unreachable or overloaded. Returns null for anything else (SQL and constraint errors stay internal errors).
+ */
+export function databaseUnavailable(e: unknown): HttpError | null {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (/exceeded D1.s .*(limit|quota)|daily row read limit|rows? read limit/i.test(msg))
+    return new HttpError(
+      503,
+      "d1_quota_exceeded",
+      "The database has reached its daily read limit on the Cloudflare Free plan. It resets at 00:00 UTC. Nothing was saved.",
+    );
+  if (
+    /overloaded|Network connection lost|storage (caused|operation)|internal error|timed? ?out|unavailable/i.test(
+      msg,
+    ) &&
+    !/constraint|no such|syntax error|SQLITE_/i.test(msg)
+  )
+    return new HttpError(
+      503,
+      "database_unavailable",
+      "The database is temporarily unavailable. Nothing was saved. Try again in a minute.",
+    );
+  return null;
+}
+
 export type WriteStep = { sql: string; params: unknown[]; expectChanges: number };
 
 const unique = (msg: string) => /UNIQUE constraint failed/i.test(msg);
@@ -56,6 +82,8 @@ export async function writeBatch(db: AdminDb | null, steps: WriteStep[]): Promis
         "invalid_reference",
         "A referenced record does not exist. Nothing was saved.",
       );
+    const unavailable = databaseUnavailable(e);
+    if (unavailable) throw unavailable;
     console.error("admin db write failed:", unique(msg) ? "unique" : "other");
     throw new HttpError(
       500,
@@ -99,6 +127,8 @@ export async function readSafe<T>(fn: () => Promise<T>): Promise<T> {
     return await fn();
   } catch (e) {
     if (e instanceof HttpError) throw e;
+    const unavailable = databaseUnavailable(e);
+    if (unavailable) throw unavailable;
     console.error("admin db read failed");
     throw new HttpError(500, "database_error", "The database could not be read.");
   }
@@ -114,9 +144,30 @@ export const catalogVersionStep = (now: string): WriteStep => ({
   expectChanges: 1,
 });
 
+/**
+ * Marks the content sections (blog, courses, gadgets, guest articles) as changed, in the same batch as the write, so the
+ * static-site gate re-checks those pages (src/static/freshness.ts). Separate from catalog_version: a blog edit does not
+ * make tool pages re-check anything.
+ */
+export const contentVersionStep = (now: string): WriteStep => ({
+  sql: "INSERT INTO meta (key, value, updated_at) VALUES ('content_version', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+  params: [`${now}#${crypto.randomUUID()}`, now],
+  expectChanges: 1,
+});
+
 /** Which row a write must have just touched. Table and column names come from this fixed list, never from input. */
 export type AuditGuard = {
-  table: "tools" | "categories" | "blog_posts";
+  table:
+    | "tools"
+    | "categories"
+    | "blog_posts"
+    | "courses"
+    | "gadgets"
+    | "guest_articles"
+    | "tutorials"
+    | "media"
+    | "news_articles"
+    | "news_sources";
   key: "id" | "slug";
   value: string;
   stamp: "created_at" | "updated_at";

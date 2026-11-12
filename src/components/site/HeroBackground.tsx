@@ -16,7 +16,11 @@ export function HeroBackground() {
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <div className="absolute inset-0 bg-hero-glows" />
       <div className="absolute inset-0 bg-grid-lines [mask-image:radial-gradient(ellipse_70%_60%_at_50%_42%,#000,transparent_75%)]" />
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 1412 850" preserveAspectRatio="xMidYMid slice">
+      <svg
+        className="absolute inset-0 h-full w-full"
+        viewBox="0 0 1412 850"
+        preserveAspectRatio="xMidYMid slice"
+      >
         <defs>
           <linearGradient id="orbit-stroke" x1="0" x2="1" y1="0" y2="0">
             <stop offset="0" stopColor="#5353f1" stopOpacity="0" />

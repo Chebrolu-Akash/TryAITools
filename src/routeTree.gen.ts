@@ -13,15 +13,37 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AffiliateDisclosureRouteImport } from './routes/affiliate-disclosure'
+import { Route as AgentsRouteImport } from './routes/agents'
+import { Route as HowWeReviewRouteImport } from './routes/how-we-review'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TermsRouteImport } from './routes/terms'
-import { Route as ApiDbCheckRouteImport } from './routes/api.db-check'
+import { Route as ApiSearchRouteImport } from './routes/api.search'
+import { Route as ApiStatsRouteImport } from './routes/api.stats'
+import { Route as BlogIndexRouteImport } from './routes/blog.index'
+import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
 import { Route as CategoriesIndexRouteImport } from './routes/categories.index'
 import { Route as CategoriesSlugRouteImport } from './routes/categories.$slug'
+import { Route as CoursesIndexRouteImport } from './routes/courses.index'
+import { Route as CoursesSlugRouteImport } from './routes/courses.$slug'
+import { Route as GadgetsIndexRouteImport } from './routes/gadgets.index'
+import { Route as GadgetsSlugRouteImport } from './routes/gadgets.$slug'
+import { Route as GuestArticlesIndexRouteImport } from './routes/guest-articles.index'
+import { Route as GuestArticlesSlugRouteImport } from './routes/guest-articles.$slug'
+import { Route as LearnIndexRouteImport } from './routes/learn.index'
+import { Route as MediaFileRouteImport } from './routes/media.$file'
+import { Route as NewsIndexRouteImport } from './routes/news.index'
+import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as ToolsIndexRouteImport } from './routes/tools.index'
 import { Route as ToolsSlugRouteImport } from './routes/tools.$slug'
 import { Route as ApiAdminSplatRouteImport } from './routes/api.admin.$'
+import { Route as LearnBooksIndexRouteImport } from './routes/learn.books.index'
+import { Route as LearnBooksSlugRouteImport } from './routes/learn.books.$slug'
+import { Route as LearnCoursesIndexRouteImport } from './routes/learn.courses.index'
+import { Route as LearnCoursesSlugRouteImport } from './routes/learn.courses.$slug'
+import { Route as LearnTutorialsIndexRouteImport } from './routes/learn.tutorials.index'
+import { Route as LearnTutorialsSlugRouteImport } from './routes/learn.tutorials.$slug'
+import { Route as NewsCategoryCategoryRouteImport } from './routes/news.category.$category'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -43,6 +65,16 @@ const AffiliateDisclosureRoute = AffiliateDisclosureRouteImport.update({
   path: '/affiliate-disclosure',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AgentsRoute = AgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowWeReviewRoute = HowWeReviewRouteImport.update({
+  id: '/how-we-review',
+  path: '/how-we-review',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -58,9 +90,24 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDbCheckRoute = ApiDbCheckRouteImport.update({
-  id: '/api/db-check',
-  path: '/api/db-check',
+const ApiSearchRoute = ApiSearchRouteImport.update({
+  id: '/api/search',
+  path: '/api/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiStatsRoute = ApiStatsRouteImport.update({
+  id: '/api/stats',
+  path: '/api/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: '/blog/',
+  path: '/blog/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlogSlugRoute = BlogSlugRouteImport.update({
+  id: '/blog/$slug',
+  path: '/blog/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CategoriesIndexRoute = CategoriesIndexRouteImport.update({
@@ -71,6 +118,56 @@ const CategoriesIndexRoute = CategoriesIndexRouteImport.update({
 const CategoriesSlugRoute = CategoriesSlugRouteImport.update({
   id: '/categories/$slug',
   path: '/categories/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoursesIndexRoute = CoursesIndexRouteImport.update({
+  id: '/courses/',
+  path: '/courses/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CoursesSlugRoute = CoursesSlugRouteImport.update({
+  id: '/courses/$slug',
+  path: '/courses/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GadgetsIndexRoute = GadgetsIndexRouteImport.update({
+  id: '/gadgets/',
+  path: '/gadgets/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GadgetsSlugRoute = GadgetsSlugRouteImport.update({
+  id: '/gadgets/$slug',
+  path: '/gadgets/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuestArticlesIndexRoute = GuestArticlesIndexRouteImport.update({
+  id: '/guest-articles/',
+  path: '/guest-articles/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuestArticlesSlugRoute = GuestArticlesSlugRouteImport.update({
+  id: '/guest-articles/$slug',
+  path: '/guest-articles/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnIndexRoute = LearnIndexRouteImport.update({
+  id: '/learn/',
+  path: '/learn/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MediaFileRoute = MediaFileRouteImport.update({
+  id: '/media/$file',
+  path: '/media/$file',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsIndexRoute = NewsIndexRouteImport.update({
+  id: '/news/',
+  path: '/news/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsSlugRoute = NewsSlugRouteImport.update({
+  id: '/news/$slug',
+  path: '/news/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ToolsIndexRoute = ToolsIndexRouteImport.update({
@@ -88,36 +185,115 @@ const ApiAdminSplatRoute = ApiAdminSplatRouteImport.update({
   path: '/api/admin/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LearnBooksIndexRoute = LearnBooksIndexRouteImport.update({
+  id: '/learn/books/',
+  path: '/learn/books/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnBooksSlugRoute = LearnBooksSlugRouteImport.update({
+  id: '/learn/books/$slug',
+  path: '/learn/books/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnCoursesIndexRoute = LearnCoursesIndexRouteImport.update({
+  id: '/learn/courses/',
+  path: '/learn/courses/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnCoursesSlugRoute = LearnCoursesSlugRouteImport.update({
+  id: '/learn/courses/$slug',
+  path: '/learn/courses/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnTutorialsIndexRoute = LearnTutorialsIndexRouteImport.update({
+  id: '/learn/tutorials/',
+  path: '/learn/tutorials/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearnTutorialsSlugRoute = LearnTutorialsSlugRouteImport.update({
+  id: '/learn/tutorials/$slug',
+  path: '/learn/tutorials/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsCategoryCategoryRoute = NewsCategoryCategoryRouteImport.update({
+  id: '/news/category/$category',
+  path: '/news/category/$category',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/affiliate-disclosure': typeof AffiliateDisclosureRoute
+  '/agents': typeof AgentsRoute
+  '/how-we-review': typeof HowWeReviewRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/api/db-check': typeof ApiDbCheckRoute
+  '/api/search': typeof ApiSearchRoute
+  '/api/stats': typeof ApiStatsRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/categories/$slug': typeof CategoriesSlugRoute
+  '/courses/$slug': typeof CoursesSlugRoute
+  '/gadgets/$slug': typeof GadgetsSlugRoute
+  '/guest-articles/$slug': typeof GuestArticlesSlugRoute
+  '/media/$file': typeof MediaFileRoute
+  '/news/$slug': typeof NewsSlugRoute
   '/tools/$slug': typeof ToolsSlugRoute
+  '/blog/': typeof BlogIndexRoute
   '/categories/': typeof CategoriesIndexRoute
+  '/courses/': typeof CoursesIndexRoute
+  '/gadgets/': typeof GadgetsIndexRoute
+  '/guest-articles/': typeof GuestArticlesIndexRoute
+  '/learn/': typeof LearnIndexRoute
+  '/news/': typeof NewsIndexRoute
   '/tools/': typeof ToolsIndexRoute
   '/api/admin/$': typeof ApiAdminSplatRoute
+  '/learn/books/$slug': typeof LearnBooksSlugRoute
+  '/learn/courses/$slug': typeof LearnCoursesSlugRoute
+  '/learn/tutorials/$slug': typeof LearnTutorialsSlugRoute
+  '/news/category/$category': typeof NewsCategoryCategoryRoute
+  '/learn/books/': typeof LearnBooksIndexRoute
+  '/learn/courses/': typeof LearnCoursesIndexRoute
+  '/learn/tutorials/': typeof LearnTutorialsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/affiliate-disclosure': typeof AffiliateDisclosureRoute
+  '/agents': typeof AgentsRoute
+  '/how-we-review': typeof HowWeReviewRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/api/db-check': typeof ApiDbCheckRoute
+  '/api/search': typeof ApiSearchRoute
+  '/api/stats': typeof ApiStatsRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/categories/$slug': typeof CategoriesSlugRoute
+  '/courses/$slug': typeof CoursesSlugRoute
+  '/gadgets/$slug': typeof GadgetsSlugRoute
+  '/guest-articles/$slug': typeof GuestArticlesSlugRoute
+  '/media/$file': typeof MediaFileRoute
+  '/news/$slug': typeof NewsSlugRoute
   '/tools/$slug': typeof ToolsSlugRoute
+  '/blog': typeof BlogIndexRoute
   '/categories': typeof CategoriesIndexRoute
+  '/courses': typeof CoursesIndexRoute
+  '/gadgets': typeof GadgetsIndexRoute
+  '/guest-articles': typeof GuestArticlesIndexRoute
+  '/learn': typeof LearnIndexRoute
+  '/news': typeof NewsIndexRoute
   '/tools': typeof ToolsIndexRoute
   '/api/admin/$': typeof ApiAdminSplatRoute
+  '/learn/books/$slug': typeof LearnBooksSlugRoute
+  '/learn/courses/$slug': typeof LearnCoursesSlugRoute
+  '/learn/tutorials/$slug': typeof LearnTutorialsSlugRoute
+  '/news/category/$category': typeof NewsCategoryCategoryRoute
+  '/learn/books': typeof LearnBooksIndexRoute
+  '/learn/courses': typeof LearnCoursesIndexRoute
+  '/learn/tutorials': typeof LearnTutorialsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,15 +301,37 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
   '/affiliate-disclosure': typeof AffiliateDisclosureRoute
+  '/agents': typeof AgentsRoute
+  '/how-we-review': typeof HowWeReviewRoute
   '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
-  '/api/db-check': typeof ApiDbCheckRoute
+  '/api/search': typeof ApiSearchRoute
+  '/api/stats': typeof ApiStatsRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/categories/$slug': typeof CategoriesSlugRoute
+  '/courses/$slug': typeof CoursesSlugRoute
+  '/gadgets/$slug': typeof GadgetsSlugRoute
+  '/guest-articles/$slug': typeof GuestArticlesSlugRoute
+  '/media/$file': typeof MediaFileRoute
+  '/news/$slug': typeof NewsSlugRoute
   '/tools/$slug': typeof ToolsSlugRoute
+  '/blog/': typeof BlogIndexRoute
   '/categories/': typeof CategoriesIndexRoute
+  '/courses/': typeof CoursesIndexRoute
+  '/gadgets/': typeof GadgetsIndexRoute
+  '/guest-articles/': typeof GuestArticlesIndexRoute
+  '/learn/': typeof LearnIndexRoute
+  '/news/': typeof NewsIndexRoute
   '/tools/': typeof ToolsIndexRoute
   '/api/admin/$': typeof ApiAdminSplatRoute
+  '/learn/books/$slug': typeof LearnBooksSlugRoute
+  '/learn/courses/$slug': typeof LearnCoursesSlugRoute
+  '/learn/tutorials/$slug': typeof LearnTutorialsSlugRoute
+  '/news/category/$category': typeof NewsCategoryCategoryRoute
+  '/learn/books/': typeof LearnBooksIndexRoute
+  '/learn/courses/': typeof LearnCoursesIndexRoute
+  '/learn/tutorials/': typeof LearnTutorialsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -142,45 +340,111 @@ export interface FileRouteTypes {
     | '/about'
     | '/admin'
     | '/affiliate-disclosure'
+    | '/agents'
+    | '/how-we-review'
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
-    | '/api/db-check'
+    | '/api/search'
+    | '/api/stats'
+    | '/blog/$slug'
     | '/categories/$slug'
+    | '/courses/$slug'
+    | '/gadgets/$slug'
+    | '/guest-articles/$slug'
+    | '/media/$file'
+    | '/news/$slug'
     | '/tools/$slug'
+    | '/blog/'
     | '/categories/'
+    | '/courses/'
+    | '/gadgets/'
+    | '/guest-articles/'
+    | '/learn/'
+    | '/news/'
     | '/tools/'
     | '/api/admin/$'
+    | '/learn/books/$slug'
+    | '/learn/courses/$slug'
+    | '/learn/tutorials/$slug'
+    | '/news/category/$category'
+    | '/learn/books/'
+    | '/learn/courses/'
+    | '/learn/tutorials/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/admin'
     | '/affiliate-disclosure'
+    | '/agents'
+    | '/how-we-review'
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
-    | '/api/db-check'
+    | '/api/search'
+    | '/api/stats'
+    | '/blog/$slug'
     | '/categories/$slug'
+    | '/courses/$slug'
+    | '/gadgets/$slug'
+    | '/guest-articles/$slug'
+    | '/media/$file'
+    | '/news/$slug'
     | '/tools/$slug'
+    | '/blog'
     | '/categories'
+    | '/courses'
+    | '/gadgets'
+    | '/guest-articles'
+    | '/learn'
+    | '/news'
     | '/tools'
     | '/api/admin/$'
+    | '/learn/books/$slug'
+    | '/learn/courses/$slug'
+    | '/learn/tutorials/$slug'
+    | '/news/category/$category'
+    | '/learn/books'
+    | '/learn/courses'
+    | '/learn/tutorials'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/admin'
     | '/affiliate-disclosure'
+    | '/agents'
+    | '/how-we-review'
     | '/privacy'
     | '/sitemap.xml'
     | '/terms'
-    | '/api/db-check'
+    | '/api/search'
+    | '/api/stats'
+    | '/blog/$slug'
     | '/categories/$slug'
+    | '/courses/$slug'
+    | '/gadgets/$slug'
+    | '/guest-articles/$slug'
+    | '/media/$file'
+    | '/news/$slug'
     | '/tools/$slug'
+    | '/blog/'
     | '/categories/'
+    | '/courses/'
+    | '/gadgets/'
+    | '/guest-articles/'
+    | '/learn/'
+    | '/news/'
     | '/tools/'
     | '/api/admin/$'
+    | '/learn/books/$slug'
+    | '/learn/courses/$slug'
+    | '/learn/tutorials/$slug'
+    | '/news/category/$category'
+    | '/learn/books/'
+    | '/learn/courses/'
+    | '/learn/tutorials/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -188,15 +452,37 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRoute
   AffiliateDisclosureRoute: typeof AffiliateDisclosureRoute
+  AgentsRoute: typeof AgentsRoute
+  HowWeReviewRoute: typeof HowWeReviewRoute
   PrivacyRoute: typeof PrivacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
-  ApiDbCheckRoute: typeof ApiDbCheckRoute
+  ApiSearchRoute: typeof ApiSearchRoute
+  ApiStatsRoute: typeof ApiStatsRoute
+  BlogSlugRoute: typeof BlogSlugRoute
   CategoriesSlugRoute: typeof CategoriesSlugRoute
+  CoursesSlugRoute: typeof CoursesSlugRoute
+  GadgetsSlugRoute: typeof GadgetsSlugRoute
+  GuestArticlesSlugRoute: typeof GuestArticlesSlugRoute
+  MediaFileRoute: typeof MediaFileRoute
+  NewsSlugRoute: typeof NewsSlugRoute
   ToolsSlugRoute: typeof ToolsSlugRoute
+  BlogIndexRoute: typeof BlogIndexRoute
   CategoriesIndexRoute: typeof CategoriesIndexRoute
+  CoursesIndexRoute: typeof CoursesIndexRoute
+  GadgetsIndexRoute: typeof GadgetsIndexRoute
+  GuestArticlesIndexRoute: typeof GuestArticlesIndexRoute
+  LearnIndexRoute: typeof LearnIndexRoute
+  NewsIndexRoute: typeof NewsIndexRoute
   ToolsIndexRoute: typeof ToolsIndexRoute
   ApiAdminSplatRoute: typeof ApiAdminSplatRoute
+  LearnBooksSlugRoute: typeof LearnBooksSlugRoute
+  LearnCoursesSlugRoute: typeof LearnCoursesSlugRoute
+  LearnTutorialsSlugRoute: typeof LearnTutorialsSlugRoute
+  NewsCategoryCategoryRoute: typeof NewsCategoryCategoryRoute
+  LearnBooksIndexRoute: typeof LearnBooksIndexRoute
+  LearnCoursesIndexRoute: typeof LearnCoursesIndexRoute
+  LearnTutorialsIndexRoute: typeof LearnTutorialsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -229,6 +515,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AffiliateDisclosureRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/agents': {
+      id: '/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof AgentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-we-review': {
+      id: '/how-we-review'
+      path: '/how-we-review'
+      fullPath: '/how-we-review'
+      preLoaderRoute: typeof HowWeReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -250,11 +550,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/db-check': {
-      id: '/api/db-check'
-      path: '/api/db-check'
-      fullPath: '/api/db-check'
-      preLoaderRoute: typeof ApiDbCheckRouteImport
+    '/api/search': {
+      id: '/api/search'
+      path: '/api/search'
+      fullPath: '/api/search'
+      preLoaderRoute: typeof ApiSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/stats': {
+      id: '/api/stats'
+      path: '/api/stats'
+      fullPath: '/api/stats'
+      preLoaderRoute: typeof ApiStatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog/': {
+      id: '/blog/'
+      path: '/blog'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/blog/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/categories/': {
@@ -269,6 +590,76 @@ declare module '@tanstack/react-router' {
       path: '/categories/$slug'
       fullPath: '/categories/$slug'
       preLoaderRoute: typeof CategoriesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/courses/': {
+      id: '/courses/'
+      path: '/courses'
+      fullPath: '/courses/'
+      preLoaderRoute: typeof CoursesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/courses/$slug': {
+      id: '/courses/$slug'
+      path: '/courses/$slug'
+      fullPath: '/courses/$slug'
+      preLoaderRoute: typeof CoursesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gadgets/': {
+      id: '/gadgets/'
+      path: '/gadgets'
+      fullPath: '/gadgets/'
+      preLoaderRoute: typeof GadgetsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gadgets/$slug': {
+      id: '/gadgets/$slug'
+      path: '/gadgets/$slug'
+      fullPath: '/gadgets/$slug'
+      preLoaderRoute: typeof GadgetsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guest-articles/': {
+      id: '/guest-articles/'
+      path: '/guest-articles'
+      fullPath: '/guest-articles/'
+      preLoaderRoute: typeof GuestArticlesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guest-articles/$slug': {
+      id: '/guest-articles/$slug'
+      path: '/guest-articles/$slug'
+      fullPath: '/guest-articles/$slug'
+      preLoaderRoute: typeof GuestArticlesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/': {
+      id: '/learn/'
+      path: '/learn'
+      fullPath: '/learn/'
+      preLoaderRoute: typeof LearnIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/media/$file': {
+      id: '/media/$file'
+      path: '/media/$file'
+      fullPath: '/media/$file'
+      preLoaderRoute: typeof MediaFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news/': {
+      id: '/news/'
+      path: '/news'
+      fullPath: '/news/'
+      preLoaderRoute: typeof NewsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news/$slug': {
+      id: '/news/$slug'
+      path: '/news/$slug'
+      fullPath: '/news/$slug'
+      preLoaderRoute: typeof NewsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tools/': {
@@ -292,6 +683,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/learn/books/': {
+      id: '/learn/books/'
+      path: '/learn/books'
+      fullPath: '/learn/books/'
+      preLoaderRoute: typeof LearnBooksIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/books/$slug': {
+      id: '/learn/books/$slug'
+      path: '/learn/books/$slug'
+      fullPath: '/learn/books/$slug'
+      preLoaderRoute: typeof LearnBooksSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/courses/': {
+      id: '/learn/courses/'
+      path: '/learn/courses'
+      fullPath: '/learn/courses/'
+      preLoaderRoute: typeof LearnCoursesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/courses/$slug': {
+      id: '/learn/courses/$slug'
+      path: '/learn/courses/$slug'
+      fullPath: '/learn/courses/$slug'
+      preLoaderRoute: typeof LearnCoursesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/tutorials/': {
+      id: '/learn/tutorials/'
+      path: '/learn/tutorials'
+      fullPath: '/learn/tutorials/'
+      preLoaderRoute: typeof LearnTutorialsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learn/tutorials/$slug': {
+      id: '/learn/tutorials/$slug'
+      path: '/learn/tutorials/$slug'
+      fullPath: '/learn/tutorials/$slug'
+      preLoaderRoute: typeof LearnTutorialsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news/category/$category': {
+      id: '/news/category/$category'
+      path: '/news/category/$category'
+      fullPath: '/news/category/$category'
+      preLoaderRoute: typeof NewsCategoryCategoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -300,15 +740,37 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AdminRoute: AdminRoute,
   AffiliateDisclosureRoute: AffiliateDisclosureRoute,
+  AgentsRoute: AgentsRoute,
+  HowWeReviewRoute: HowWeReviewRoute,
   PrivacyRoute: PrivacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
-  ApiDbCheckRoute: ApiDbCheckRoute,
+  ApiSearchRoute: ApiSearchRoute,
+  ApiStatsRoute: ApiStatsRoute,
+  BlogSlugRoute: BlogSlugRoute,
   CategoriesSlugRoute: CategoriesSlugRoute,
+  CoursesSlugRoute: CoursesSlugRoute,
+  GadgetsSlugRoute: GadgetsSlugRoute,
+  GuestArticlesSlugRoute: GuestArticlesSlugRoute,
+  MediaFileRoute: MediaFileRoute,
+  NewsSlugRoute: NewsSlugRoute,
   ToolsSlugRoute: ToolsSlugRoute,
+  BlogIndexRoute: BlogIndexRoute,
   CategoriesIndexRoute: CategoriesIndexRoute,
+  CoursesIndexRoute: CoursesIndexRoute,
+  GadgetsIndexRoute: GadgetsIndexRoute,
+  GuestArticlesIndexRoute: GuestArticlesIndexRoute,
+  LearnIndexRoute: LearnIndexRoute,
+  NewsIndexRoute: NewsIndexRoute,
   ToolsIndexRoute: ToolsIndexRoute,
   ApiAdminSplatRoute: ApiAdminSplatRoute,
+  LearnBooksSlugRoute: LearnBooksSlugRoute,
+  LearnCoursesSlugRoute: LearnCoursesSlugRoute,
+  LearnTutorialsSlugRoute: LearnTutorialsSlugRoute,
+  NewsCategoryCategoryRoute: NewsCategoryCategoryRoute,
+  LearnBooksIndexRoute: LearnBooksIndexRoute,
+  LearnCoursesIndexRoute: LearnCoursesIndexRoute,
+  LearnTutorialsIndexRoute: LearnTutorialsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

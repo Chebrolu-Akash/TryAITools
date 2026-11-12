@@ -3,6 +3,7 @@
 // has always used (originally in src/lib/tool-pages.ts); src/test/catalog.test.ts proves they give identical results
 // for tools.json, so URLs and SEO do not change when the source switches to D1.
 import { contentFor, curatedKey, hasCuratedContent, type ToolContent } from "@/lib/tool-content";
+import type { PricingModel } from "@/lib/pricing";
 import { domainOf } from "@/lib/tool-utils";
 
 /** What browsers receive for a tool card or list row. */
@@ -13,6 +14,10 @@ export type PublicTool = {
   category: string;
   categorySlug: string;
   subcategory: string;
+  /** Recorded pricing model; absent when not recorded (never guessed). See src/lib/pricing.ts. */
+  pricing?: PricingModel;
+  /** Functional tags from the fixed vocabulary (src/lib/tags.ts); absent when none are recorded. */
+  tags?: string[];
 };
 export type PublicCategory = { name: string; slug: string; subcategories: string[] };
 
@@ -40,6 +45,9 @@ export type SourceTool = {
   /** Stored indexing decision (D1). When absent it is derived from curated content, as before. */
   indexing?: "index" | "noindex" | undefined;
   copy?: ToolCopy | undefined;
+  /** Recorded pricing model and functional tags (D1); absent in tools.json. */
+  pricing?: PricingModel | undefined;
+  tags?: string[] | undefined;
 };
 
 export type CatalogTool = PublicTool & { indexable: boolean; copy: ToolCopy | null };
@@ -64,6 +72,8 @@ export const toPublic = (t: CatalogTool): PublicTool => ({
   category: t.category,
   categorySlug: t.categorySlug,
   subcategory: t.subcategory,
+  ...(t.pricing ? { pricing: t.pricing } : {}),
+  ...(t.tags?.length ? { tags: t.tags } : {}),
 });
 
 /** Rows with a placeholder name or no real website (e.g. "Tool Name" / https://Website) are never suggested. */
@@ -100,6 +110,8 @@ export function buildCatalog(input: {
       category: t.category,
       categorySlug,
       subcategory: t.subcategory ?? "",
+      ...(t.pricing ? { pricing: t.pricing } : {}),
+      ...(t.tags?.length ? { tags: t.tags } : {}),
       indexable: false,
       copy: t.copy ?? null,
     };

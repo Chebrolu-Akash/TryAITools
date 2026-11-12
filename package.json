@@ -17,7 +17,8 @@
     "db:check-config": "bun scripts/db/check-generated-config.mjs",
     "db:preview": "bun scripts/db/preview-d1.mjs",
     "admin:setup": "bun scripts/db/local-admin.mjs setup",
-    "admin:dev": "bun scripts/db/local-admin.mjs start"
+    "admin:dev": "bun scripts/db/local-admin.mjs start",
+    "static:build": "bun scripts/static/build-site.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

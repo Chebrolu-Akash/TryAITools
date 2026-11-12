@@ -12,3 +12,5 @@ export const logoOf = (url: string, size = 64) => {
   return d ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(d)}&sz=${size}` : "";
 };
 export const shortName = (c: string) => c.replace(/^AI /, "").replace(/ Tools$/, "");
+/** A category or subcategory name as shown to visitors: without the leading "AI" ("AI Writing Assistants" -> "Writing Assistants"). */
+export const dropAI = (c: string) => c.replace(/^AI /, "");

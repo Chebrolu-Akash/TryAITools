@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
-  Link,
   createRootRouteWithContext,
   useRouter,
   HeadContent,
@@ -26,12 +25,12 @@ function NotFoundComponent() {
           The page you're looking for doesn't exist or has been moved.
         </p>
         <div className="mt-6">
-          <Link
-            to="/"
+          <a
+            href="/"
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Go home
-          </Link>
+          </a>
         </div>
       </div>
     </div>
@@ -77,9 +76,11 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  // Tool count and category links for the shared layout, read from the live catalogue.
-  loader: () => fetchSiteSummary(),
-  staleTime: 60_000,
+  // Tool count and category links for the shared layout, read from the live catalogue. The admin does not use the public
+  // layout, so it never reads the public catalogue: a D1 problem must not stop the admin from loading and reporting it.
+  // (The router has already decoded the path; the server guard is what enforces access.)
+  loader: ({ location }) => (/^\/admin(\/|$)/i.test(location.pathname) ? null : fetchSiteSummary()),
+  staleTime: Infinity, // pages are pre-built; never refetch in the browser
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -102,16 +103,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap",
       },
-      { rel: "icon", href: "/favicon.ico", sizes: "any" },
-      { rel: "icon", href: "/favicon-32.png", type: "image/png", sizes: "32x32" },
-      { rel: "icon", href: "/favicon-16.png", type: "image/png", sizes: "16x16" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
+      // ?v=2: the logo changed on 2026-11-01; the query skips the one-day browser cache on these files.
+      { rel: "icon", href: "/favicon.ico?v=2", sizes: "any" },
+      { rel: "icon", href: "/favicon-32.png?v=2", type: "image/png", sizes: "32x32" },
+      { rel: "icon", href: "/favicon-16.png?v=2", type: "image/png", sizes: "16x16" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=2", sizes: "180x180" },
       { rel: "manifest", href: "/site.webmanifest" },
     ],
-    scripts: [
-      { src: GA_SCRIPT_SRC, async: true },
-      { children: GA_INLINE_SCRIPT },
-    ],
+    scripts: [{ src: GA_SCRIPT_SRC, async: true }, { children: GA_INLINE_SCRIPT }],
   }),
   shellComponent: RootShell,
   component: RootComponent,

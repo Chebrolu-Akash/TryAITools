@@ -1,5 +1,13 @@
 {
   "name": "pixel-perfect",
+  "compatibility_date": "2026-10-31",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tryaitools-production",
+      "database_id": "d120a8d7-1450-4d42-b345-5e22ce208dcd"
+    }
+  ],
   "previews": {
     "d1_databases": [
       {

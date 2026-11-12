@@ -1,0 +1,12 @@
+// Used ONLY by `wrangler d1 export/migrations/execute` commands against the PRODUCTION database (see docs/ai-news.md,
+// "Production"). Never deploy this file. The preview database has its own file: wrangler.preview-migrations.jsonc.
+{
+  "d1_databases": [
+    {
+      "binding": "PRODUCTION_DB",
+      "database_name": "tryaitools-production",
+      "database_id": "d120a8d7-1450-4d42-b345-5e22ce208dcd",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

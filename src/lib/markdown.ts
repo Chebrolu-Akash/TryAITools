@@ -6,14 +6,18 @@
 // same-site paths; the href that is emitted is the URL parser's normalized output.
 //
 // Supported: # headings, paragraphs, **bold**, *italic* / _italic_, `code`, ``` fenced code, [links](url),
-// - / * bullet lists, 1. numbered lists, > quotes, --- rules. Images and HTML are intentionally not supported.
+// - / * bullet lists, 1. numbered lists, > quotes, --- rules, and ![alt](/media/<id>.<ext>) images uploaded through the
+// admin (no other image source is accepted). HTML is intentionally not supported.
+
+import { MEDIA_PATH } from "./media";
 
 export type Inline =
   | { t: "text"; v: string }
   | { t: "strong"; c: Inline[] }
   | { t: "em"; c: Inline[] }
   | { t: "code"; v: string }
-  | { t: "link"; href: string; external: boolean; c: Inline[] };
+  | { t: "link"; href: string; external: boolean; c: Inline[] }
+  | { t: "img"; src: string; alt: string };
 
 export type Block =
   | { t: "h"; level: 2 | 3 | 4 | 5 | 6; c: Inline[] }
@@ -105,6 +109,20 @@ function parseInline(src: string, depth = 0): Inline[] {
         if (end > i + 1 && src[i + 1] !== " ") {
           flush();
           out.push({ t: "em", c: parseInline(src.slice(i + 1, end), depth + 1) });
+          i = end + 1;
+          continue;
+        }
+      }
+      if (ch === "!" && src[i + 1] === "[") {
+        const close = src.indexOf("](", i + 2);
+        const end = close > -1 ? src.indexOf(")", close + 2) : -1;
+        if (close > i && end > close) {
+          const target = src.slice(close + 2, end).trim();
+          const alt = src.slice(i + 2, close);
+          flush();
+          // Only images uploaded through the admin; anything else keeps just its alt text.
+          if (MEDIA_PATH.test(target)) out.push({ t: "img", src: target, alt });
+          else buf += alt;
           i = end + 1;
           continue;
         }

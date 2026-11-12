@@ -1,7 +1,8 @@
 import { getD1 } from "./env";
 import type { D1DatabaseLike } from "./types";
 
-// TEMPORARY Stage-2 diagnostic. Replaced by an Access-protected admin health page in Stage 3.
+// D1 binding diagnostic, served only at /api/admin/db-check (Cloudflare Access + owner allowlist; see src/lib/admin/api.ts).
+// The public /api/db-check route was removed: anyone could call it, and each call read every row of `tools`.
 // It answers only on preview/local hosts and 404s everywhere else, including tryaitools.io.
 const ALLOWED_HOST = /(^|\.)workers\.dev$|^localhost$|^127\.0\.0\.1$/;
 

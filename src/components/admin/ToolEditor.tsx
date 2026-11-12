@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AdminApiError, api } from "./client";
+import { PricingPlansEditor } from "./PricingPlansEditor";
 import {
   emptyToolForm,
   isDirty,
@@ -28,6 +29,7 @@ import {
   useToast,
 } from "./ui";
 import type { Nav } from "./AdminApp";
+import { ReviewDraftPanel, type ReviewTool } from "./ReviewDraftPanel";
 import type { ToolRecord } from "./types";
 
 type Tool = ToolRecord;
@@ -48,12 +50,12 @@ const ACTION_COPY: Record<
   publish: {
     label: "Publish",
     title: "Publish this tool?",
-    text: "It appears on the public site (tools list, its category and its own page) on the next page load, as long as its category is published. Indexing stays as you set it.",
+    text: "It appears on the public site (tools list, its category, search and its own page) on the next page load, as long as its category is published. Indexing stays as you set it: while it is off, the tool is public but not in the sitemap and search engines are asked not to index it.",
   },
   unpublish: {
     label: "Unpublish",
     title: "Unpublish this tool?",
-    text: "It returns to draft and indexing is switched off.",
+    text: "It returns to draft, disappears from the site, search and sitemap, and indexing is switched off. If you publish it again later, turn Search indexing back on (SEO and indexing) to return it to the sitemap.",
     destructive: true,
   },
   send_to_review: {
@@ -64,7 +66,7 @@ const ACTION_COPY: Record<
   archive: {
     label: "Archive",
     title: "Archive this tool?",
-    text: "It is hidden everywhere and indexing is switched off. You can restore it later. Nothing is deleted.",
+    text: "It is hidden everywhere and indexing is switched off. You can restore it later. Nothing is deleted. If you publish it again later, turn Search indexing back on (SEO and indexing) to return it to the sitemap.",
     destructive: true,
   },
   restore: {
@@ -75,7 +77,7 @@ const ACTION_COPY: Record<
   flag_needs_review: {
     label: "Flag: needs review",
     title: "Flag as needing review?",
-    text: "A published tool will be moved back to draft and indexing switched off until the flag is cleared.",
+    text: "A published tool will be moved back to draft and indexing switched off until the flag is cleared. If you publish it again later, turn Search indexing back on (SEO and indexing) to return it to the sitemap.",
     destructive: true,
   },
   clear_needs_review: {
@@ -192,7 +194,12 @@ export function ToolEditor({ slug, nav }: { slug?: string | undefined; nav: Nav 
       setForm(f);
       setBase(f);
       setBanner(null);
-      toast.success(`${ACTION_COPY[pending].label}: done. The database confirmed the change.`);
+      toast.success(
+        `${ACTION_COPY[pending].label}: done. The database confirmed the change.` +
+          (r.tool.status === "published" && r.tool.indexing !== "index"
+            ? " Indexing is off, so it is not in the sitemap yet: allow indexing below if it should be."
+            : ""),
+      );
     } catch (err) {
       setBanner({ kind: "error", text: errorMessage(err) });
     } finally {
@@ -264,6 +271,8 @@ export function ToolEditor({ slug, nav }: { slug?: string | undefined; nav: Nav 
         </Banner>
       )}
 
+      {tool && <ReviewDraftPanel tool={tool as unknown as ReviewTool} onChanged={loaded.reload} />}
+
       {tool && (
         <section className={card} aria-labelledby="wf-h">
           <h3 id="wf-h" className="text-lg font-extrabold">
@@ -281,6 +290,27 @@ export function ToolEditor({ slug, nav }: { slug?: string | undefined; nav: Nav 
               {fmtDate(tool.updated_at)} · Source: {tool.content_source}
             </span>
           </div>
+          {tool.status === "published" && tool.indexing !== "index" && (
+            <div className="mt-3">
+              <Banner kind="info">
+                Published with search indexing off: this page is not in the sitemap and search
+                engines are asked not to index it. That is intended for secondary listings of a
+                product. If this tool was indexed before it was unpublished, archived or flagged,
+                indexing stayed off when it was published again.{" "}
+                {form.indexing === "index" ? (
+                  <strong>Indexing will be allowed when you save.</strong>
+                ) : (
+                  <button
+                    type="button"
+                    className="font-bold underline"
+                    onClick={() => set("indexing", "index")}
+                  >
+                    Allow indexing
+                  </button>
+                )}
+              </Banner>
+            </div>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             {available(tool).map((a) => (
               <button
@@ -510,6 +540,23 @@ export function ToolEditor({ slug, nav }: { slug?: string | undefined; nav: Nav 
             />
           </Field>
           <Field
+            label="Pricing model"
+            error={errors.pricing_model}
+            hint="Shown as a tag and used by the pricing filters. Leave unset unless verified."
+          >
+            <select
+              className={inputCls}
+              value={form.pricing_model}
+              onChange={(e) => set("pricing_model", e.target.value)}
+            >
+              <option value="">Not recorded</option>
+              <option value="free">Free</option>
+              <option value="freemium">Freemium</option>
+              <option value="free_trial">Free Trial</option>
+              <option value="paid">Paid</option>
+            </select>
+          </Field>
+          <Field
             label="Pricing note"
             error={errors.pricing_note}
             hint="Only what you have verified"
@@ -522,9 +569,9 @@ export function ToolEditor({ slug, nav }: { slug?: string | undefined; nav: Nav 
             />
           </Field>
           <Field
-            label="Pricing source / verification"
+            label="Official pricing page"
             error={errors.pricing_source}
-            hint="Where and when you checked"
+            hint="https link; shown as the source under the pricing plans"
           >
             <input
               className={inputCls}
@@ -533,6 +580,30 @@ export function ToolEditor({ slug, nav }: { slug?: string | undefined; nav: Nav 
               onChange={(e) => set("pricing_source", e.target.value)}
             />
           </Field>
+          <Field
+            label="Pricing checked on"
+            error={errors["pricing_checked_at"]}
+            hint="The date you read the official page"
+          >
+            <input
+              type="date"
+              className={inputCls}
+              value={form.pricing_checked_at}
+              onChange={(e) => set("pricing_checked_at", e.target.value)}
+            />
+          </Field>
+        </div>
+        <div>
+          <h4 className="text-sm font-extrabold">Pricing plans</h4>
+          <p className="mb-3 mt-0.5 text-xs text-muted-foreground">
+            Copy only what the official page shows. Leave a price out rather than guess it: the page
+            then says &ldquo;Pricing not specified&rdquo;.
+          </p>
+          <PricingPlansEditor
+            value={form.pricing_plans}
+            onChange={(v) => set("pricing_plans", v)}
+            errors={errors}
+          />
         </div>
       </section>
 
