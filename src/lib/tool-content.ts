@@ -170,8 +170,10 @@ const T: Record<string, CategoryTemplate> = {
 
 const FALLBACK: CategoryTemplate = T["ai-chatbots-assistants"]!;
 
-const catSlug = (category: string) =>
-  category.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+// The template keys are the category IDs, which drop "&" ("AI Audio & Voice Tools" -> "ai-audio-voice-tools"), so "&" is
+// treated as a separator, not spelled out as "and" (which used to send these categories to the Chatbots fallback).
+export const catSlug = (category: string) =>
+  category.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 // Hand-written copy for popular tools. Keyed by lower-case name without a trailing "(Company)".
 type Curated = { description: string; features: string[]; pros: string[]; limits: string[]; prompt?: string; steps?: string[]; tips?: string[] };
