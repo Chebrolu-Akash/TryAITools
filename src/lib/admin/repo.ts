@@ -8,6 +8,7 @@ import {
   writeBatch,
   type AdminDb,
 } from "./db";
+import { gateReasons } from "./indexing";
 import {
   isSafeHttpUrl,
   type blogActionSchema,
@@ -384,6 +385,31 @@ export async function updateTool(ctx: Ctx, slug: string, input: z.infer<typeof t
   checkIndexing(existing.status, input.indexing);
   await checkCategory(d, input.category_id, input.subcategory ?? null, existing);
   const values = toolValues(input);
+  // The indexing gate (G1–G10) whenever the saved tool is, or stays, indexed: a newly indexed tool must pass every check;
+  // an indexed tool may not be edited into failing a check it passed. No override.
+  if (input.indexing === "index") {
+    const cat = await readSafe(() =>
+      d.prepare("SELECT status FROM categories WHERE id = ?").bind(input.category_id).first<Row>(),
+    );
+    const next: Row = Object.fromEntries(TOOL_EDIT_COLS.map((c, i) => [c, values[i]]));
+    next["category_status"] = cat?.["status"] ?? null;
+    const curCat = await readSafe(() =>
+      d
+        .prepare("SELECT status FROM categories WHERE id = ?")
+        .bind(existing["category_id"])
+        .first<Row>(),
+    );
+    const reasons = await gateReasons(
+      d,
+      { ...existing, category_status: curCat?.["status"] ?? null },
+      next,
+      ctx.now,
+    );
+    if (reasons.length)
+      throw new HttpError(422, "index_gate", `This tool cannot be indexed: ${reasons.join("; ")}`, {
+        indexing: reasons.join("; "),
+      });
+  }
   // A save counts as a content edit (content_source = 'admin', which makes the page use the stored best-for, steps and
   // tips) only when the page copy itself changed. Saving pricing, the website URL, SEO fields and so on leaves the page's
   // copy exactly as it was.

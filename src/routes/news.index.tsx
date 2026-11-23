@@ -26,6 +26,8 @@ function NewsPage() {
       category={null}
       items={d.items}
       trending={d.trending}
+      latest={d.latest}
+      counts={d.counts}
       page={d.page}
       hasMore={d.hasMore}
       q={d.q}

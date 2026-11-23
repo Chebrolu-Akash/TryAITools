@@ -6,11 +6,14 @@
 import { z } from "zod";
 import { robotsAllows } from "@/lib/news/robots";
 import { DEFAULT_NEWS_MODEL } from "@/lib/news/summarize";
+import { unsupportedPricingClaims } from "./pricing-claims";
 
 export const REVIEW_USER_AGENT = "TryAITools-ReviewBot/1.0 (+https://tryaitools.io/how-we-review)";
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const MAX_HTML_BYTES = 150_000;
-const MAX_TEXT = { home: 7000, pricing: 5000 };
+// heavy marketing sites inline 150 KB+ of CSS before any body text
+const MAX_HTML_BYTES = 1_500_000;
+// navigation menus on large sites can fill 7,000 characters before the product copy starts
+const MAX_TEXT = { home: 12000, pricing: 6000 };
 export const PRICING_MODELS = ["free", "freemium", "free_trial", "paid"] as const;
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
@@ -25,22 +28,27 @@ export type Source = {
 // ------------------------------------------------------------------------------------------------ fetching
 /** Visible text of an HTML page: scripts/styles/svg/nav chrome removed, tags stripped, entities decoded, whitespace collapsed. */
 export function pageText(html: string): string {
-  return html
-    .replace(/<(script|style|noscript|svg|template|iframe)[\s\S]*?<\/\1>/gi, " ")
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<br\s*\/?>|<\/(p|div|li|h[1-6]|section|tr|td|th)>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;|&#160;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;|&apos;|&#x27;/gi, "'")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
-    .replace(/[ \t\r\f\v]+/g, " ")
-    .replace(/\s*\n\s*/g, "\n")
-    .replace(/\n{2,}/g, "\n")
-    .trim();
+  return (
+    html
+      .replace(/<(script|style|noscript|svg|template|iframe)[\s\S]*?<\/\1>/gi, " ")
+      // a page cut off at the byte cap can end inside one of those blocks: drop the unclosed tail
+      .replace(/<(script|style|noscript|svg|template|iframe)\b[\s\S]*$/i, " ")
+      .replace(/<!--[\s\S]*?-->/g, " ")
+      .replace(/<br\s*\/?>|<\/(p|div|li|h[1-6]|section|tr|td|th)>/gi, "\n")
+      // quote-aware: utility-class attributes such as class="[&>div]:p-2" contain ">"
+      .replace(/<(?:[^>"']|"[^"]*"|'[^']*')*>/g, " ")
+      .replace(/&nbsp;|&#160;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;|&apos;|&#x27;/gi, "'")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
+      .replace(/[ \t\r\f\v]+/g, " ")
+      .replace(/\s*\n\s*/g, "\n")
+      .replace(/\n{2,}/g, "\n")
+      .trim()
+  );
 }
 const titleOf = (html: string) =>
   (/<title[^>]*>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? "")
@@ -58,7 +66,12 @@ async function getHtml(
 ): Promise<{ ok: true; html: string; finalUrl: string } | { ok: false; error: string }> {
   try {
     const r = await f(url, {
-      headers: { "user-agent": REVIEW_USER_AGENT, accept: "text/html" },
+      // English listing: ask for English pages (some sites geo-redirect, e.g. to /fr/)
+      headers: {
+        "user-agent": REVIEW_USER_AGENT,
+        accept: "text/html",
+        "accept-language": "en-US,en;q=0.8",
+      },
       redirect: "follow",
       signal: AbortSignal.timeout(15_000),
     });
@@ -177,11 +190,13 @@ Rules:
   exactly from the page text that supports it. If you cannot quote support, leave the item out.
 - features: up to 6 concrete capabilities, each one sentence (max 18 words), plain language, no marketing superlatives.
 - advantages: up to 4 practical benefits the pages state or directly show (e.g. a free plan, integrations, platforms).
+- use_cases: 2-4 short items (max 12 words each) saying who the tool is for or what it is used for, as the pages state
+  it (e.g. "Marketing teams planning social media posts"). Each needs its own evidence quote.
 - limitations: up to 3 limits the pages state or directly show (e.g. no free plan, usage caps, waitlist, platform limits,
   enterprise-only features). If the pages show none, return an empty list. Do not invent drawbacks.
 - pricing.model: free | freemium | free_trial | paid | unknown. Use unknown unless the pages clearly show it.
   pricing.summary: one short factual sentence, or "" when unknown. Never state a price that is not on the page.
-- tagline: max 12 words. overview: 45-110 words, original wording (do not copy sentences), neutral and factual.
+- tagline: 3-12 words. overview: 45-110 words, original wording (do not copy sentences), neutral and factual.
 - seo_title: "<Name>: <what it does in 3-6 words>", at most 58 characters, no brand of ours.
 - seo_description: 120-155 characters, factual, mentions the main use and pricing model only if known.
 - insufficient = true when the text is too thin to write an honest entry; then other fields may be empty.`;
@@ -201,6 +216,7 @@ const OUTPUT_SCHEMA = {
     "tagline",
     "overview",
     "features",
+    "use_cases",
     "advantages",
     "limitations",
     "pricing",
@@ -222,6 +238,7 @@ const OUTPUT_SCHEMA = {
     tagline: { type: "string" },
     overview: { type: "string" },
     features: { type: "array", items: ITEM },
+    use_cases: { type: "array", items: ITEM },
     advantages: { type: "array", items: ITEM },
     limitations: { type: "array", items: ITEM },
     pricing: {
@@ -245,6 +262,7 @@ const answerSchema = z.object({
   tagline: z.string(),
   overview: z.string(),
   features: z.array(item),
+  use_cases: z.array(item).default([]),
   advantages: z.array(item),
   limitations: z.array(item),
   pricing: z.object({
@@ -281,6 +299,8 @@ export type ReviewDraft = {
   tagline: string;
   overview: string;
   features: string[];
+  /** 2-4 grounded use cases ("best for"). */
+  best_for: string[];
   pros: string[];
   limits: string[];
   pricing: {
@@ -290,13 +310,27 @@ export type ReviewDraft = {
   };
   seo_title: string;
   seo_description: string;
-  evidence: { features: string[]; pros: string[]; limits: string[]; pricing: string };
-  sources: { url: string; checked_at: string; kind: string }[];
+  evidence: {
+    features: string[];
+    best_for: string[];
+    pros: string[];
+    limits: string[];
+    pricing: string;
+  };
+  /** The official pages, with the text the quotes were checked against (kept so approval can re-verify every quote). */
+  sources: { url: string; checked_at: string; kind: string; text?: string }[];
   quality: {
     status: "draft_ready" | "needs_manual";
+    /** Why the draft needs manual research (the product, its site or too little verified). */
     reasons: string[];
+    /** What the editor must fix before approving (lengths); approval refuses until they are fixed. */
+    fixes?: string[];
+    /** What the pipeline removed or adjusted automatically (e.g. an unsupported pricing summary). */
+    notes?: string[];
     identity: { matches: boolean; name_on_site: string; reason: string };
     dropped_ungrounded: number;
+    /** Parked domain, shut-down or rebrand wording, or a redirect to another site. */
+    signals: string[];
     features: number;
     pros: number;
     limits: number;
@@ -307,13 +341,37 @@ export type ReviewDraft = {
   generated_at: string;
 };
 
+const PARKED =
+  /(parking-lander|domain (is )?for sale|buy this domain|this domain (may be|is) for sale|hugedomains|afternic)/i;
+const CHANGED =
+  /(shutting down|we('re| are) shutting|has shut down|has been discontinued|is (being )?discontinued|no longer (available|supported|operating|accepting)|sunsett?ing|has been sunset|end of life|ceased operations|has been acquired|we('ve| have) been acquired|is now part of|has joined forces|rebranded (to|as))/i;
+const hostOf = (u: string) => {
+  try {
+    return new URL(u).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return "";
+  }
+};
+/** Signs the listing may be outdated: a parked domain, shut-down/acquisition/rebrand wording, or a move to another site. */
+export function pageSignals(sources: Source[], listedUrl?: string, finalUrl?: string): string[] {
+  const text = sources.map((s) => s.text).join("\n");
+  const out: string[] = [];
+  if (PARKED.test(text) || /\/lander\b/.test(finalUrl ?? "")) out.push("domain appears parked");
+  const m = CHANGED.exec(text);
+  if (m) out.push(`page says "${m[0]}"`);
+  if (listedUrl && finalUrl && hostOf(listedUrl) && hostOf(finalUrl) !== hostOf(listedUrl))
+    out.push(`redirects to ${hostOf(finalUrl)}`);
+  return out;
+}
+
 /** Turns the model's answer into a draft, keeping only grounded items, and assesses it. Pure. */
 export function buildDraft(
   a: Answer,
   sources: Source[],
-  tool: { name: string },
+  tool: { name: string; url?: string },
   model: string,
   now: string,
+  finalUrl?: string,
 ): ReviewDraft {
   const all = norm(sources.map((s) => s.text).join("\n"));
   const pricingSrc = sources.find((s) => s.kind === "pricing") ?? sources[0]!;
@@ -329,6 +387,7 @@ export function buildDraft(
     return out;
   };
   const features = keep(a.features, 6, 160);
+  const useCases = keep(a.use_cases ?? [], 4, 120);
   const pros = keep(a.advantages, 4, 160);
   const limits = keep(a.limitations, 3, 160);
   const pricingOk = a.pricing.model !== "unknown" && groundedIn(a.pricing.evidence, all);
@@ -338,8 +397,31 @@ export function buildDraft(
   if (a.insufficient) reasons.push("the model found the official pages too thin");
   if (!a.identity.matches)
     reasons.push(`identity not confirmed: ${sentence(a.identity.reason, 160)}`);
-  if (words(overview) < 35) reasons.push("overview too short");
-  if (features.length < 2) reasons.push(`only ${features.length} feature(s) could be verified`);
+  // Lengths are the editor's to fix (approval refuses until they are within the limits); an empty text is not fixable.
+  const fixes: string[] = [];
+  const notes: string[] = [];
+  const ow = words(overview);
+  if (ow < 20) reasons.push(`overview has ${ow} words (needs 45-110)`);
+  else if (ow < 45 || ow > 110) fixes.push(`overview has ${ow} words (needs 45-110)`);
+  const tw = words(a.tagline);
+  if (tw === 0) reasons.push("no tagline");
+  else if (tw < 3 || tw > 12) fixes.push(`tagline has ${tw} words (needs 3-12)`);
+  if (features.length < 3)
+    reasons.push(`only ${features.length} feature(s) could be verified (needs 3)`);
+  if (useCases.length < 2)
+    reasons.push(`only ${useCases.length} use case(s) could be verified (needs 2)`);
+  // G5: a summary stating amounts or plan names its quote does not contain is removed (never published); the model,
+  // which the quote does support, is kept.
+  let summary = pricingOk ? sentence(a.pricing.summary, 300) : "";
+  const unsupported = pricingOk ? unsupportedPricingClaims(summary, a.pricing.evidence) : [];
+  if (unsupported.length) {
+    notes.push(
+      `pricing summary removed: it stated ${unsupported.join(", ")}, which its quote does not contain`,
+    );
+    summary = "";
+  }
+  const signals = pageSignals(sources, tool.url, finalUrl);
+  if (signals.length) reasons.push(`check the product: ${signals.join("; ")}`);
   const title = sentence(a.seo_title, 70);
   const desc = sentence(a.seo_description, 170);
   if (
@@ -350,36 +432,46 @@ export function buildDraft(
         .split(" ")[0]!,
     )
   )
-    reasons.push("SEO title does not name the tool");
+    fixes.push("SEO title does not name the tool");
   return {
     tagline: sentence(a.tagline, 120),
     overview,
     features: features.map((x) => x.text),
+    best_for: useCases.map((x) => x.text),
     pros: pros.map((x) => x.text),
     limits: limits.map((x) => x.text),
     pricing: {
       model: pricingOk ? (a.pricing.model as ReviewDraft["pricing"]["model"]) : null,
-      summary: pricingOk ? sentence(a.pricing.summary, 300) : "",
+      summary,
       source_url: pricingOk ? pricingSrc.url : null,
     },
     seo_title: title,
     seo_description: desc,
     evidence: {
       features: features.map((x) => x.evidence),
+      best_for: useCases.map((x) => x.evidence),
       pros: pros.map((x) => x.evidence),
       limits: limits.map((x) => x.evidence),
       pricing: pricingOk ? sentence(a.pricing.evidence, 220) : "",
     },
-    sources: sources.map((s) => ({ url: s.url, checked_at: s.checked_at, kind: s.kind })),
+    sources: sources.map((s) => ({
+      url: s.url,
+      checked_at: s.checked_at,
+      kind: s.kind,
+      text: s.text,
+    })),
     quality: {
       status: reasons.length ? "needs_manual" : "draft_ready",
       reasons,
+      fixes,
+      notes,
       identity: {
         matches: a.identity.matches,
         name_on_site: sentence(a.identity.name_on_site, 80),
         reason: sentence(a.identity.reason, 160),
       },
       dropped_ungrounded: dropped,
+      signals,
       features: features.length,
       pros: pros.length,
       limits: limits.length,
@@ -392,7 +484,7 @@ export function buildDraft(
 }
 
 export type DraftResult =
-  | { ok: true; draft: ReviewDraft }
+  | { ok: true; draft: ReviewDraft; finalUrl?: string }
   | { ok: false; reason: string; deferred: boolean; stopRun?: boolean; sources?: Source[] };
 
 export type DraftTool = { name: string; url: string; category: string; subcategory: string | null };
@@ -489,5 +581,9 @@ export async function generateDraft(
   } catch {
     return { ok: false, reason: "the model's answer did not match the schema", deferred: true };
   }
-  return { ok: true, draft: buildDraft(a, c.sources, tool, model, now) };
+  return {
+    ok: true,
+    draft: buildDraft(a, c.sources, tool, model, now, c.finalUrl),
+    finalUrl: c.finalUrl,
+  };
 }

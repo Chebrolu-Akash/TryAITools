@@ -94,6 +94,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:image", content: OG_IMAGE },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: OG_IMAGE },
+      // Impact.com site ownership check; Impact reads `value`, not `content`.
+      { name: "impact-site-verification", value: "1fd06217-b4a8-41e9-8750-88df14bef1e4" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

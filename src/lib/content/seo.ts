@@ -94,7 +94,7 @@ export function detailHead({
       ...(imageUrl ? { image: imageUrl } : {}),
       author: article.author
         ? { "@type": "Person", name: article.author }
-        : { "@type": "Organization", name: SITE_NAME },
+        : { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/") },
       publisher: { "@type": "Organization", name: SITE_NAME, url: absoluteUrl("/") },
     });
   return {

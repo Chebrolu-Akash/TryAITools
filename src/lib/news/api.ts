@@ -3,7 +3,13 @@
 import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getD1 } from "@/lib/db/env";
-import { isNewsCategory, pageNumber, searchQuery, type NewsCategory } from "./model";
+import {
+  NEWS_PAGE_SIZE,
+  isNewsCategory,
+  pageNumber,
+  searchQuery,
+  type NewsCategory,
+} from "./model";
 import { createNewsReader } from "./reader";
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -20,17 +26,21 @@ const listInput = (v: unknown): ListInput => {
   };
 };
 
-/** A listing page: the requested page of news, plus Trending on the first unfiltered page of the landing page. */
+/**
+ * A listing page: the requested page of news plus the sidebar: Trending (all news, last 7 days), the newest articles
+ * across every category ("Latest updates") and the number of published articles per category.
+ */
 export const fetchNewsList = createServerFn({ method: "GET" })
   .validator(listInput)
   .handler(async ({ data }) => {
     const r = await reader();
-    const landing = !data.category && !data.q && data.page === 1;
-    const [list, trending] = await Promise.all([
+    const [list, trending, latest, counts] = await Promise.all([
       r.list(data),
-      landing ? r.trending(new Date()) : Promise.resolve([]),
+      r.trending(new Date()),
+      r.latest(NEWS_PAGE_SIZE + 6),
+      r.categoryCounts(),
     ]);
-    return { ...list, trending, q: data.q };
+    return { ...list, trending, latest, counts, q: data.q };
   });
 
 export const fetchNewsItem = createServerFn({ method: "GET" })

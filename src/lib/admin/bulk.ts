@@ -21,7 +21,8 @@ import {
   type AdminDb,
   type WriteStep,
 } from "./db";
-import { indexGate } from "./index-gate";
+import { loadGateContexts } from "./gate-context";
+import { gateDecision, gateFailures, type GateContext, type GateTool } from "./index-gate";
 import { isSafeHttpUrl } from "./validation";
 import { clampInt, need, parseJson, toolFilter, type Ctx, type Row } from "./repo";
 
@@ -191,11 +192,6 @@ const stateOf = (t: ToolRow, mems: Membership[]): State => ({
   memberships: [...mems].sort((a, b) => a.category_id.localeCompare(b.category_id)),
 });
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-const productKey = (name: string) =>
-  name
-    .replace(/\s*\(.+\)\s*$/, "")
-    .trim()
-    .toLowerCase();
 
 export type PlanItem = {
   slug: string;
@@ -213,7 +209,7 @@ export function planTool(
   mems: Membership[],
   edit: { set?: Edit["set"]; tags?: Edit["tags"]; memberships?: Edit["memberships"] },
   categories: Map<string, Category>,
-  otherIndexedSameProduct: boolean,
+  gate: GateContext,
 ): { item: PlanItem; before: State; after: State } {
   const before = stateOf(t, mems);
   const after: State = {
@@ -278,14 +274,24 @@ export function planTool(
   }
   // a primary category is never also a membership
   after.memberships = after.memberships.filter((x) => x.category_id !== after.category_id);
-  // the indexing gate, whenever the result is (or stays) indexed and something changed
-  if (after.indexing === "index" && (s.indexing === "index" || !same(before, after))) {
-    const merged = {
-      ...t,
-      ...after,
-      category_status: cat?.status ?? null,
-    } as unknown as Parameters<typeof indexGate>[0];
-    reasons.push(...indexGate(merged, otherIndexedSameProduct && before.indexing !== "index"));
+  // "reviewed" comes only from an editor's approval of a draft (G9), never from a bulk edit
+  if (s.review_status === "reviewed" && before.review_status !== "reviewed" && !gate.approval)
+    reasons.push(
+      "G9: only an approved review can mark a tool reviewed (approve its draft in the editor)",
+    );
+  // the indexing gate (G1–G10) whenever the result is, or stays, indexed: newly indexed tools must pass every check,
+  // indexed tools may not be changed into failing a check they passed. No override.
+  if (after.indexing === "index") {
+    const wasIndexed = before.indexing === "index";
+    const curCat = categories.get(String(t["category_id"]));
+    const failsAfter = gateFailures(
+      { ...t, ...after, category_status: cat?.status ?? null } as unknown as GateTool,
+      gate,
+    );
+    const failsBefore = wasIndexed
+      ? gateFailures({ ...t, category_status: curCat?.status ?? null } as unknown as GateTool, gate)
+      : [];
+    reasons.push(...gateDecision(wasIndexed, failsBefore, failsAfter));
   }
   const changes: PlanItem["changes"] = {};
   for (const k of [...FIELDS, "memberships"] as const)
@@ -300,26 +306,6 @@ export function planTool(
     before,
     after,
   };
-}
-
-async function otherIndexed(d: AdminDb, tools: ToolRow[]): Promise<Set<string>> {
-  // product names that already have an indexed listing outside the given tools
-  const names = [...new Set(tools.map((t) => productKey(String(t.name))))];
-  const r = await d
-    .prepare(
-      `SELECT t.slug, t.name FROM tools t WHERE t.indexing = 'index'
-        AND lower(trim(CASE WHEN instr(t.name, ' (') > 0 THEN substr(t.name, 1, instr(t.name, ' (') - 1) ELSE t.name END))
-            IN (SELECT value FROM json_each(?))`,
-    )
-    .bind(JSON.stringify(names))
-    .all<Row>();
-  const out = new Set<string>();
-  for (const t of tools) {
-    const k = productKey(String(t.name));
-    if (r.results.some((x) => x["slug"] !== t.slug && productKey(String(x["name"])) === k))
-      out.add(t.slug);
-  }
-  return out;
 }
 
 function editFor(edit: Pick<Edit, "set" | "tags" | "memberships" | "rows">, slugV: string) {
@@ -340,7 +326,7 @@ export async function previewBulk(db: AdminDb | null, edit: Edit) {
     for (let i = 0; i < edit.slugs.length; i += 250) {
       const part = edit.slugs.slice(i, i + 250);
       const ctx = await loadContext(d, part);
-      const others = await otherIndexed(d, [...ctx.tools.values()]);
+      const gates = await loadGateContexts(d, [...ctx.tools.values()], new Date().toISOString());
       for (const s of part) {
         const t = ctx.tools.get(s);
         if (!t) {
@@ -359,7 +345,7 @@ export async function previewBulk(db: AdminDb | null, edit: Edit) {
             ctx.memberships.get(t.id) ?? [],
             editFor(edit, s),
             ctx.categories,
-            others.has(s),
+            gates.get(s)!,
           ).item,
         );
       }
@@ -470,7 +456,7 @@ export async function applyChunk(ctx: Ctx, opId: string, input: z.infer<typeof b
   if (op["status"] !== "running")
     throw new HttpError(409, "operation_closed", "This bulk operation is finished.");
   const c = await readSafe(() => loadContext(d, input.slugs));
-  const others = await readSafe(() => otherIndexed(d, [...c.tools.values()]));
+  const gates = await readSafe(() => loadGateContexts(d, [...c.tools.values()], ctx.now));
   const results: {
     slug: string;
     result: "applied" | "unchanged" | "skipped" | "failed";
@@ -488,7 +474,7 @@ export async function applyChunk(ctx: Ctx, opId: string, input: z.infer<typeof b
       c.memberships.get(t.id) ?? [],
       editFor(input, s),
       c.categories,
-      others.has(s),
+      gates.get(s)!,
     );
     if (plan.item.status === "invalid")
       results.push({ slug: s, result: "skipped", reasons: plan.item.reasons });
@@ -600,7 +586,14 @@ export async function undoChunk(ctx: Ctx, opId: string, input: z.infer<typeof bu
   );
   const slugs = items.results.map((i) => String(i["slug"]));
   const c = slugs.length ? await readSafe(() => loadContext(d, slugs)) : null;
-  const results: { slug: string; result: "restored" | "conflict" | "missing" }[] = [];
+  const gates = c
+    ? await readSafe(() => loadGateContexts(d, [...c.tools.values()], ctx.now))
+    : null;
+  const results: {
+    slug: string;
+    result: "restored" | "conflict" | "missing" | "blocked";
+    reasons?: string[];
+  }[] = [];
   const steps: WriteStep[] = [];
   const done: Row[] = [];
   for (const it of items.results) {
@@ -619,14 +612,22 @@ export async function undoChunk(ctx: Ctx, opId: string, input: z.infer<typeof bu
       done.push(it);
       continue;
     }
+    const restored = { ...now, ...Object.fromEntries(touched.map((k) => [k, before[k]])) } as State;
+    // Undo may switch indexing back on only through the gate (G1–G10), like any other path. No override.
+    if (restored.indexing === "index" && now.indexing !== "index") {
+      const cat = c!.categories.get(String(restored.category_id));
+      const reasons = gateFailures(
+        { ...t, ...restored, category_status: cat?.status ?? null } as unknown as GateTool,
+        gates!.get(t.slug)!,
+      ).map((x) => x.reason);
+      if (reasons.length) {
+        results.push({ slug: t.slug, result: "blocked", reasons });
+        done.push(it); // left as it is, like a conflict; it can be indexed later through the gate
+        continue;
+      }
+    }
     steps.push(
-      ...toolSteps(
-        t.id,
-        now,
-        { ...now, ...Object.fromEntries(touched.map((k) => [k, before[k]])) } as State,
-        ctx.now,
-        String(t["updated_at"]),
-      ),
+      ...toolSteps(t.id, now, restored, ctx.now, String(t["updated_at"])),
       auditStep(
         ctx.actor,
         "tool.bulk_undo",

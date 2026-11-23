@@ -81,6 +81,8 @@ export type NewsCard = {
   publishedAt: string;
   sourcePublishedAt: string | null;
   featured: boolean;
+  /** Minutes to read the AI summary; null/absent when unknown. */
+  readMinutes?: number | null;
 };
 /** An article page: the card plus the AI summary, takeaways and attribution. */
 export type NewsDetail = NewsCard & {

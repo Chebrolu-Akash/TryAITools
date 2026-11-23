@@ -706,6 +706,7 @@ describe("ingestion pipeline (real migrations in SQLite)", () => {
         "featured",
         "imageUrl",
         "publishedAt",
+        "readMinutes",
         "slug",
         "sourceName",
         "sourcePublishedAt",

@@ -14,10 +14,15 @@ import {
 } from "./model";
 
 type Row = Record<string, unknown>;
+// summary_chars: the length of the AI summary, for the card's reading time (listings never receive the summary itself).
 const CARD = `a.slug, a.title, a.card_description, a.category, a.source_name, a.image_url, a.published_at,
-  a.source_published_at, a.featured`;
+  a.source_published_at, a.featured, LENGTH(a.summary) AS summary_chars`;
 const DETAIL = `${CARD}, a.summary, a.takeaways, a.tags, a.companies, a.products, a.canonical_url, a.collected_at,
   a.updated_at, s.site_url`;
+
+/** Minutes to read a summary of `chars` characters (about 6 characters a word, 220 words a minute); null when empty. */
+export const readMinutes = (chars: number): number | null =>
+  Number.isFinite(chars) && chars > 0 ? Math.max(1, Math.round(chars / 6 / 220)) : null;
 
 const card = (r: Row): NewsCard => ({
   slug: String(r["slug"]),
@@ -30,6 +35,7 @@ const card = (r: Row): NewsCard => ({
   publishedAt: String(r["published_at"] ?? ""),
   sourcePublishedAt: typeof r["source_published_at"] === "string" ? r["source_published_at"] : null,
   featured: r["featured"] === 1,
+  readMinutes: readMinutes(Number(r["summary_chars"] ?? 0)),
 });
 /**
  * LIKE pattern for a search query, with % and _ escaped. D1 rejects LIKE patterns over 50 bytes ("LIKE or GLOB pattern
@@ -77,9 +83,11 @@ export function createNewsReader(db: D1DatabaseLike | null) {
         }
         if (opts.q) {
           where.push(
-            "(a.title LIKE ? ESCAPE '\\' OR a.card_description LIKE ? ESCAPE '\\' OR a.source_name LIKE ? ESCAPE '\\')",
+            `(a.title LIKE ? ESCAPE '\\' OR a.card_description LIKE ? ESCAPE '\\' OR a.source_name LIKE ? ESCAPE '\\'
+              OR a.summary LIKE ? ESCAPE '\\')`,
           );
-          params.push(like(opts.q), like(opts.q), like(opts.q));
+          const pat = like(opts.q);
+          params.push(pat, pat, pat, pat);
         }
         const { results } = await d
           .prepare(
@@ -111,6 +119,35 @@ export function createNewsReader(db: D1DatabaseLike | null) {
           .bind(since, limit)
           .all<Row>();
         return results.map(card);
+      });
+    },
+
+    /** The newest published articles across every category (the listings' "Latest updates" rail). */
+    latest(limit = 8): Promise<NewsCard[]> {
+      return safe([], async (d) => {
+        const { results } = await d
+          .prepare(
+            `SELECT ${CARD} FROM news_articles a WHERE a.status = 'published'
+              ORDER BY a.published_at DESC, a.id LIMIT ?`,
+          )
+          .bind(limit)
+          .all<Row>();
+        return results.map(card);
+      });
+    },
+
+    /** Published articles per category; a category without any is absent. */
+    categoryCounts(): Promise<Partial<Record<NewsCategory, number>>> {
+      return safe({}, async (d) => {
+        const { results } = await d
+          .prepare(
+            `SELECT a.category AS category, COUNT(*) AS n FROM news_articles a
+              WHERE a.status = 'published' GROUP BY a.category`,
+          )
+          .all<Row>();
+        const out: Partial<Record<NewsCategory, number>> = {};
+        for (const r of results) out[String(r["category"]) as NewsCategory] = Number(r["n"] ?? 0);
+        return out;
       });
     },
 

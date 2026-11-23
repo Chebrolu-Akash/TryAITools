@@ -97,6 +97,23 @@ describe("technical SEO", () => {
     );
   });
 
+  it("an AI News article has exactly one Article node; its TryAITools author and publisher both carry the site url", () => {
+    const h = newsArticleHead(article()) as unknown as Head;
+    const graph = ld(h)["@graph"];
+    const nodes = graph.filter((n: { "@type": string }) => n["@type"] === "Article");
+    expect(nodes).toHaveLength(1);
+    expect(nodes[0].author).toEqual({
+      "@type": "Organization",
+      name: "TryAITools",
+      url: "https://tryaitools.io/",
+    });
+    expect(nodes[0].publisher).toEqual({
+      "@type": "Organization",
+      name: "TryAITools",
+      url: "https://tryaitools.io/",
+    });
+  });
+
   it("AI News listings carry a BreadcrumbList; search results and empty listings carry none", () => {
     const hub = newsListHead({ category: null, q: "", page: 1, count: 12 }) as unknown as Head;
     expect(ld(hub).itemListElement.map((i: { item: string }) => i.item)).toEqual([

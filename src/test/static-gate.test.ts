@@ -36,6 +36,7 @@ import {
 import { SITE_URL } from "@/lib/site";
 import { goodClaims, goodEnv, makeKey, signJwt, staticJwks } from "./helpers/access-jwt";
 import { createTestDb, type TestDb } from "./helpers/sqlite-d1";
+import { passGate } from "./helpers/gate-fixture";
 
 const empty = (): Freshness => ({
   version: "v",
@@ -535,7 +536,8 @@ describe("gate against D1 and the Admin API", () => {
   const toolUrls = (urls: Set<string>) => [...urls].filter((u) => u.startsWith("/tools/")).sort();
   const reindex = async (slug: string) => {
     const t = (await admin("GET", `tools/${slug}`)).json.tool;
-    return (await admin("PUT", `tools/${slug}`, { ...pickEditable(t), indexing: "index" })).status;
+    const r = await admin("PUT", `tools/${slug}`, { ...pickEditable(t), indexing: "index" });
+    return r.status;
   };
   const quota = () =>
     new Error(
@@ -574,6 +576,9 @@ describe("gate against D1 and the Admin API", () => {
     expect(toolUrls(s.urls)).toEqual(listed());
     // publish/unpublish changed the category page (its list), not the tool page
     expect(s.lastmod.get("/categories/ai-writing-tools")!.startsWith("2099-")).toBe(true);
+    // Re-indexing now goes through the full gate (G1–G10): a legacy curated listing must pass a review first
+    expect(await reindex("claude")).toBe(422);
+    passGate(db.raw, "claude", "2099-01-01T00:00:00.000Z");
     expect(await reindex("claude")).toBe(200);
     s = await sitemap();
     expect(s.urls.has("/tools/claude")).toBe(true);
@@ -583,6 +588,7 @@ describe("gate against D1 and the Admin API", () => {
     expect(await act("figma", "clear_needs_review")).toBe(200);
     expect((await sitemap()).urls.has("/tools/figma")).toBe(false); // flagging moved it back to draft
     expect(await act("figma", "publish")).toBe(200);
+    passGate(db.raw, "figma", "2099-01-01T00:00:00.000Z");
     expect(await reindex("figma")).toBe(200);
     expect((await sitemap()).urls.has("/tools/figma")).toBe(true);
 
@@ -616,6 +622,9 @@ describe("gate against D1 and the Admin API", () => {
       expect(await act(slug, "publish")).toBe(200);
     }
     expect((await sitemap()).urls.has("/tools/fresh-tool")).toBe(false); // published, but noindex
+    expect(await reindex("fresh-tool")).toBe(422); // no reviewed content: the gate refuses
+    expect((await sitemap()).urls.has("/tools/fresh-tool")).toBe(false);
+    passGate(db.raw, "fresh-tool", "2099-01-01T00:00:00.000Z");
     expect(await reindex("fresh-tool")).toBe(200);
     const s = await sitemap();
     expect(s.urls.has("/tools/fresh-tool")).toBe(true);
@@ -1045,6 +1054,9 @@ describe("gate against D1 and the Admin API", () => {
       "tips",
       "pricing_note",
       "pricing_source",
+      "pricing_model",
+      "pricing_plans",
+      "pricing_checked_at",
       "platforms",
       "seo_title",
       "seo_description",

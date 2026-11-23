@@ -17,6 +17,7 @@ import {
   type TestKey,
 } from "./helpers/access-jwt";
 import { createTestDb, type TestDb } from "./helpers/sqlite-d1";
+import { passGate } from "./helpers/gate-fixture";
 
 const NOW = 1_800_000_000;
 const ORIGIN = "https://admin.test";
@@ -183,6 +184,14 @@ describe("admin bulk management", () => {
   });
 
   it("the indexing gate: unreviewed tools are never indexed; a reviewed, complete tool is", async () => {
+    // "ready" has the old minimum (reviewed, an overview, one feature): G1–G10 refuse it until a full approved review
+    const thin = await call("POST", "bulk/preview", {
+      slugs: ["ready"],
+      set: { indexing: "index" },
+    });
+    expect(thin.json.items[0].status).toBe("invalid");
+    expect(thin.json.items[0].reasons.join(" ")).toMatch(/G1: .*G2: .*G3: .*G9: .*G10: /);
+    passGate(db.raw, "ready", "2026-11-08T09:00:00.000Z");
     const r = await call("POST", "bulk/preview", {
       slugs: ["tool-1", "ready"],
       set: { indexing: "index" },
@@ -190,7 +199,11 @@ describe("admin bulk management", () => {
     const t1 = r.json.items.find((i: any) => i.slug === "tool-1");
     expect(t1.status).toBe("invalid");
     expect(t1.reasons).toEqual(
-      expect.arrayContaining(["not reviewed", "no overview", "no verified features"]),
+      expect.arrayContaining([
+        "G9: not reviewed",
+        "G1: overview has 0 words (needs 45–110)",
+        "G2: 0 feature(s) (needs at least 3)",
+      ]),
     );
     expect(r.json.items.find((i: any) => i.slug === "ready").status).toBe("change");
     const { results } = await run(
@@ -201,6 +214,55 @@ describe("admin bulk management", () => {
     expect(results.find((x: any) => x.slug === "tool-1").result).toBe("skipped");
     expect(tool("tool-1").indexing).toBe("noindex");
     expect(tool("ready").indexing).toBe("index");
+  });
+
+  it("bulk 'mark reviewed' cannot stand in for an editor's approval (G9)", async () => {
+    const r = await call("POST", "bulk/preview", {
+      slugs: ["tool-1"],
+      set: { review_status: "reviewed" },
+    });
+    expect(r.json.items[0].status).toBe("invalid");
+    expect(r.json.items[0].reasons[0]).toMatch(/^G9: only an approved review/);
+    const { results } = await run(["tool-1"], { set: { review_status: "reviewed" } });
+    expect(results[0].result).toBe("skipped");
+    expect(tool("tool-1").review_status).toBe("unreviewed");
+  });
+
+  it("undo cannot switch indexing back on unless the tool passes the gate", async () => {
+    passGate(db.raw, "ready", "2026-11-08T09:00:00.000Z");
+    db.raw.exec(`UPDATE tools SET indexing = 'index' WHERE slug = 'ready'`);
+    const { op } = await run(["ready"], { set: { indexing: "noindex" } }, "disable_indexing");
+    expect(tool("ready").indexing).toBe("noindex");
+    // the tool stops passing (its URL check went stale and failed), then the disable is undone
+    db.raw.exec(`UPDATE tools SET url_status = 'dead' WHERE slug = 'ready'`);
+    const u = await call("POST", `bulk/operations/${op}/undo`, {});
+    expect(u.json.results[0].result).toBe("blocked");
+    expect(u.json.results[0].reasons.join(" ")).toMatch(/G6: URL status is dead/);
+    expect(tool("ready").indexing).toBe("noindex");
+  });
+
+  it("an indexed tool may be bulk-edited, but not into failing a check it passed (no regression)", async () => {
+    passGate(db.raw, "ready", "2026-11-08T09:00:00.000Z");
+    db.raw.exec(`UPDATE tools SET indexing = 'index' WHERE slug = 'ready'`);
+    // tags are not part of the gate: allowed
+    expect(
+      (await run(["ready"], { tags: { mode: "add", values: ["AI Writing"] } })).results[0].result,
+    ).toBe("applied");
+    // a subcategory change within the confirmed category keeps every check passing: allowed
+    const ok = await call("POST", "bulk/preview", {
+      slugs: ["ready"],
+      set: { subcategory: "Assistants" },
+    });
+    expect(ok.json.items[0].status).toBe("change");
+    // moving it to another category voids the editor's category confirmation (G10), which it passed: refused
+    const bad = await call("POST", "bulk/preview", {
+      slugs: ["ready"],
+      set: { category_id: "video", subcategory: "Generation" },
+    });
+    expect(bad.json.items[0].status).toBe("invalid");
+    expect(bad.json.items[0].reasons.join(" ")).toMatch(
+      /G10: category changed since it was confirmed.*the tool is indexed/,
+    );
   });
 
   it("apply writes only the chosen fields, in chunks, with one audit row and one undo row per tool", async () => {

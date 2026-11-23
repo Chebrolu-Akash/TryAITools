@@ -34,7 +34,9 @@ function NewsCategoryPage() {
     <NewsListing
       category={category}
       items={d.items}
-      trending={[]}
+      trending={d.trending}
+      latest={d.latest}
+      counts={d.counts}
       page={d.page}
       hasMore={d.hasMore}
       q={d.q}

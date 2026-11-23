@@ -29,6 +29,7 @@ import {
   useToast,
 } from "./ui";
 import type { Nav } from "./AdminApp";
+import { IndexingPanel } from "./IndexingPanel";
 import { ReviewDraftPanel, type ReviewTool } from "./ReviewDraftPanel";
 import type { ToolRecord } from "./types";
 
@@ -272,6 +273,9 @@ export function ToolEditor({ slug, nav }: { slug?: string | undefined; nav: Nav 
       )}
 
       {tool && <ReviewDraftPanel tool={tool as unknown as ReviewTool} onChanged={loaded.reload} />}
+      {tool && (
+        <IndexingPanel slug={tool.slug} updatedAt={tool.updated_at} onChanged={loaded.reload} />
+      )}
 
       {tool && (
         <section className={card} aria-labelledby="wf-h">
@@ -298,7 +302,10 @@ export function ToolEditor({ slug, nav }: { slug?: string | undefined; nav: Nav 
                 product. If this tool was indexed before it was unpublished, archived or flagged,
                 indexing stayed off when it was published again.{" "}
                 {form.indexing === "index" ? (
-                  <strong>Indexing will be allowed when you save.</strong>
+                  <strong>
+                    Indexing will be allowed when you save, if the tool passes the indexing gate
+                    (G1–G10).
+                  </strong>
                 ) : (
                   <button
                     type="button"

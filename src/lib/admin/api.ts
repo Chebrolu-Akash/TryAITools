@@ -17,6 +17,7 @@ import {
 import * as repo from "./repo";
 import * as bulk from "./bulk";
 import * as review from "./review";
+import * as indexing from "./indexing";
 import * as news from "@/lib/news/admin";
 import { summarizerFromEnv } from "@/lib/news/cron";
 import { configFromEnv, runIngestion } from "@/lib/news/ingest";
@@ -255,14 +256,45 @@ export async function handleAdminApi(request: Request, deps: AdminApiDeps): Prom
           }),
         );
       }
-      if (segs.length === 4 && c === "draft" && (segs[3] === "approve" || segs[3] === "reject")) {
+      if (segs.length === 4 && c === "draft" && segs[3] === "approve") {
+        allow("POST");
+        return respond(
+          200,
+          await review.approveToolDraft(
+            ctx(),
+            slugAt(1),
+            await readJson(request, review.approveSchema),
+          ),
+        );
+      }
+      if (segs.length === 4 && c === "draft" && (segs[3] === "reject" || segs[3] === "revert")) {
         allow("POST");
         const input = await readJson(request, review.draftDecisionSchema);
         return respond(
           200,
-          segs[3] === "approve"
-            ? await review.approveToolDraft(ctx(), slugAt(1), input)
-            : await review.rejectToolDraft(ctx(), slugAt(1), input),
+          segs[3] === "reject"
+            ? await review.rejectToolDraft(ctx(), slugAt(1), input)
+            : await review.revertApproval(ctx(), slugAt(1), input),
+        );
+      }
+      if (segs.length === 3 && c === "review-history") {
+        allow("GET");
+        return respond(200, await review.reviewHistory(ctx(), slugAt(1)));
+      }
+      // The indexing gate (G1–G10): status for the editor, and the per-tool switch.
+      if (segs.length === 3 && c === "gate") {
+        allow("GET");
+        return respond(200, await indexing.toolGate(db, slugAt(1), ctx().now));
+      }
+      if (segs.length === 3 && c === "indexing") {
+        allow("POST");
+        return respond(
+          200,
+          await indexing.setToolIndexing(
+            ctx(),
+            slugAt(1),
+            await readJson(request, indexing.indexingSchema),
+          ),
         );
       }
       if (segs.length === 3 && c === "action") {

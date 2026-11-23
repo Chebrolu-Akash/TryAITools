@@ -142,7 +142,11 @@ export function BulkEditor({
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<Result[]>([]);
   const [opId, setOpId] = useState<string | null>(null);
-  const [undo, setUndo] = useState<{ restored: number; conflict: number } | null>(null);
+  const [undo, setUndo] = useState<{
+    restored: number;
+    conflict: number;
+    blocked: number;
+  } | null>(null);
   const catById = useMemo(() => new Map(cats.map((c) => [c.id, c])), [cats]);
   const perRowAllowed = slugs.length <= 200;
 
@@ -276,6 +280,7 @@ export function BulkEditor({
     setBusy(true);
     let restored = 0;
     let conflict = 0;
+    let blocked = 0;
     try {
       for (let guard = 0; guard < 1000; guard++) {
         const r = await api.post<{ results: Result[]; remaining: number }>(
@@ -284,9 +289,10 @@ export function BulkEditor({
         );
         restored += r.results.filter((x) => x.result === "restored").length;
         conflict += r.results.filter((x) => x.result === "conflict").length;
+        blocked += r.results.filter((x) => x.result === "blocked").length;
         if (r.remaining <= 0 || r.results.length === 0) break;
       }
-      setUndo({ restored, conflict });
+      setUndo({ restored, conflict, blocked });
       onApplied();
     } catch (e) {
       setErr(e);
@@ -749,7 +755,11 @@ export function BulkEditor({
           )}
           {undo && (
             <p className="text-sm">
-              Undo: {undo.restored} restored, {undo.conflict} kept because they were edited since.
+              Undo: {undo.restored} restored, {undo.conflict} kept because they were edited since
+              {undo.blocked
+                ? `, ${undo.blocked} left noindex because they do not pass the indexing gate (G1–G10)`
+                : ""}
+              .
             </p>
           )}
         </div>
