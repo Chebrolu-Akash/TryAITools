@@ -1,5 +1,6 @@
 import type { SitemapData } from "@/lib/catalog/views";
 import { absoluteUrl } from "@/lib/site";
+import { FIXED_PAGES } from "@/static/sitemap";
 
 export type SitemapEntry = {
   path: string;
@@ -7,21 +8,11 @@ export type SitemapEntry = {
   priority: number;
 };
 
-// Pages with fixed paths. Category and tool pages come from the live catalogue, so published categories and indexable
-// tools appear automatically and unpublished ones drop out.
-const STATIC_PAGES: SitemapEntry[] = [
-  { path: "/", changefreq: "daily", priority: 1.0 },
-  { path: "/tools", changefreq: "daily", priority: 0.9 },
-  { path: "/categories", changefreq: "weekly", priority: 0.8 },
-  { path: "/about", changefreq: "monthly", priority: 0.5 },
-  { path: "/privacy", changefreq: "yearly", priority: 0.3 },
-  { path: "/terms", changefreq: "yearly", priority: 0.3 },
-  { path: "/affiliate-disclosure", changefreq: "yearly", priority: 0.3 },
-];
-
+// Fixed pages come from the list the static build uses, so the live and pre-built sitemaps cannot drift apart.
+// Category and tool pages come from the live catalogue.
 /** `content`: the content-section entries (src/static/sitemap.ts contentEntries), listed after the fixed pages. */
 export const sitemapEntries = (data: SitemapData, content: SitemapEntry[] = []): SitemapEntry[] => [
-  ...STATIC_PAGES,
+  ...FIXED_PAGES.map(({ path, changefreq, priority }) => ({ path, changefreq, priority })),
   ...content.map(({ path, changefreq, priority }) => ({ path, changefreq, priority })),
   ...data.categorySlugs.map((slug): SitemapEntry => ({
     path: `/categories/${slug}`,

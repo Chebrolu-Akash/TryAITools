@@ -27,6 +27,7 @@ import {
 } from "@/lib/catalog/views";
 import { captureRuntimeEnv } from "@/lib/db/env";
 import { buildSitemapXml, sitemapEntries } from "@/lib/sitemap";
+import { FIXED_PAGES } from "@/static/sitemap";
 import { contentFor } from "@/lib/tool-content";
 import {
   alternativesFor,
@@ -189,6 +190,9 @@ describe("D1 reader", () => {
     expect(buildSitemapXml(sitemapEntries(await reader.sitemap()))).toBe(
       buildSitemapXml(sitemapEntries(sitemapOf(e))),
     );
+    // The live sitemap lists every fixed page the static build lists (it once dropped /how-we-review).
+    const live = sitemapEntries(sitemapOf(e)).map((x) => x.path);
+    for (const p of FIXED_PAGES) expect(live).toContain(p.path);
   });
 
   // ---------------------------------------------------------------- /tools: server-side search and pagination
