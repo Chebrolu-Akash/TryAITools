@@ -1,0 +1,177 @@
+{
+ "generatedAt": "2026-11-24T15:10:41.595Z",
+ "prod": "C:/Users/chaka/AppData/Local/Temp/claude/de95556eed162131/794a52ff-febd-48f4-af7a-7d9a199765a8/scratchpad/rel/prodnew.sqlite",
+ "preview": "C:/Users/chaka/AppData/Local/Temp/claude/de95556eed162131/794a52ff-febd-48f4-af7a-7d9a199765a8/scratchpad/rel/prevnew.sqlite",
+ "sinceAuditId": 5438,
+ "toolUpdates": 2234,
+ "colCount": {
+  "updated_at": 2224,
+  "review_notes": 643,
+  "url_checked_at": 1880,
+  "url": 82,
+  "url_status": 82,
+  "category_id": 45,
+  "subcategory": 72,
+  "tagline": 822,
+  "overview": 822,
+  "best_for": 822,
+  "features": 822,
+  "pros": 821,
+  "limits": 807,
+  "pricing_note": 239,
+  "seo_title": 822,
+  "seo_description": 822,
+  "indexing": 821,
+  "content_source": 822,
+  "pricing_checked_at": 531,
+  "review_status": 1082,
+  "reviewed_at": 822,
+  "review_sources": 822,
+  "pricing_model": 205,
+  "review_draft": 238,
+  "status": 310,
+  "pricing_source": 191,
+  "name": 15
+ },
+ "memAdd": 87,
+ "memDel": 22,
+ "memUpd": 3,
+ "redAdd": 288,
+ "redRepoint": 5,
+ "prodOnlyRedirects": [],
+ "keptEdits": [
+  {
+   "slug": "rytr",
+   "kept": {
+    "url": "https://rytr.me/?via=tryaitools-io"
+   }
+  },
+  {
+   "slug": "neuronwriter",
+   "kept": {
+    "url": "https://app.neuronwriter.com/ar/b66598af117aed238a8e4c1a438d5e07"
+   }
+  },
+  {
+   "slug": "outranking",
+   "kept": {
+    "url": "https://outrank.so/?via=tryai"
+   }
+  },
+  {
+   "slug": "dashword",
+   "kept": {
+    "url": "https://www.dashword.com/go/MTU5NP"
+   }
+  },
+  {
+   "slug": "smart-copy",
+   "kept": {
+    "status": "draft",
+    "needs_review": 1
+   }
+  },
+  {
+   "slug": "ocoya",
+   "kept": {
+    "url": "https://www.ocoya.com/?via=tryai"
+   }
+  },
+  {
+   "slug": "writecream",
+   "kept": {
+    "url": "https://www.writecream.com/?gr_pk=4Yrp"
+   }
+  },
+  {
+   "slug": "elevenlabs",
+   "kept": {
+    "url": "https://try.elevenlabs.io/zhk5bv5pelco"
+   }
+  },
+  {
+   "slug": "elevenlabs-voice-cloning",
+   "kept": {
+    "url": "https://try.elevenlabs.io/zhk5bv5pelco"
+   }
+  },
+  {
+   "slug": "elevenlabs-sound-effects",
+   "kept": {
+    "url": "https://try.elevenlabs.io/zhk5bv5pelco"
+   }
+  },
+  {
+   "slug": "smartlead-ai",
+   "kept": {
+    "url": "https://smartlead.ai/?via=tryai"
+   }
+  },
+  {
+   "slug": "dashword-seo",
+   "kept": {
+    "url": "https://www.dashword.com/go/MTU5NP"
+   }
+  }
+ ],
+ "historyRows": 918,
+ "auditRows": 4233,
+ "before": {
+  "byStatus": [
+   {
+    "status": "archived",
+    "n": 357
+   },
+   {
+    "status": "draft",
+    "n": 32
+   },
+   {
+    "status": "published",
+    "n": 1846
+   }
+  ],
+  "indexed": 27,
+  "redirects": 357,
+  "memberships": 353
+ },
+ "after": {
+  "byStatus": [
+   {
+    "status": "archived",
+    "n": 645
+   },
+   {
+    "status": "draft",
+    "n": 53
+   },
+   {
+    "status": "published",
+    "n": 1537
+   }
+  ],
+  "indexed": 848,
+  "redirects": 645,
+  "memberships": 418
+ },
+ "check": {
+  "toolsEqualTarget": true,
+  "membershipsEqualPreview": true,
+  "redirectsEqualPreviewPlusProdOnly": true,
+  "historyEqualPreview": true,
+  "newsUntouched": true,
+  "categoriesUntouched": true,
+  "integrity": "ok",
+  "fkViolations": 0,
+  "redirectsToArchived": 0,
+  "indexedNotPublished": 0,
+  "expectedChanges": 7791,
+  "applied": 7791,
+  "allStatementsApplied": true,
+  "rollbackRestoresTools": true,
+  "rollbackRestoresMemberships": true,
+  "rollbackRestoresRedirects": true,
+  "rollbackRestoresAudit": true,
+  "rollbackRestoresMeta": true
+ }
+}

@@ -79,6 +79,23 @@ if (P.size !== V.size || [...P.keys()].some((k) => !V.has(k))) {
   console.error("tool ids differ between snapshots");
   process.exit(2);
 }
+// --prod-base <older production snapshot>: columns an editor changed on production since that snapshot keep the
+// production value (e.g. affiliate URLs set in the live Admin); every other column comes from the preview.
+const keptEdits = [];
+if (arg("--prod-base")) {
+  const base = open(arg("--prod-base"), "prod-base.sqlite");
+  for (const b of base.query("SELECT * FROM tools").all()) {
+    const p = P.get(b.id);
+    if (!p || p.updated_at === b.updated_at) continue;
+    const owned = cols.filter((c) => c !== "updated_at" && b[c] !== p[c]);
+    const v = V.get(b.id);
+    const t = { ...v };
+    for (const c of owned) t[c] = p[c];
+    t.updated_at = p.updated_at > v.updated_at ? p.updated_at : v.updated_at;
+    V.set(b.id, t);
+    keptEdits.push({ slug: p.slug, kept: Object.fromEntries(owned.map((c) => [c, p[c]])) });
+  }
+}
 let toolUpdates = 0;
 const colCount = {};
 for (const [id, p] of P) {
@@ -238,7 +255,9 @@ const T = "SELECT * FROM tools ORDER BY id",
   R = "SELECT old_slug, tool_id FROM tool_redirects ORDER BY 1",
   H = "SELECT * FROM tool_review_history ORDER BY id";
 const check = {
-  toolsEqualPreview: same(r, prev, T),
+  // tools must equal the target: the preview row, with editor changes made on production kept (--prod-base)
+  toolsEqualTarget:
+    dump(r, T) === JSON.stringify([...V.values()].sort((a, b) => (a.id < b.id ? -1 : 1))),
   membershipsEqualPreview: same(r, prev, C),
   redirectsEqualPreviewPlusProdOnly:
     dump(
@@ -293,6 +312,7 @@ const report = {
   redAdd,
   redRepoint,
   prodOnlyRedirects,
+  keptEdits,
   historyRows: hist.length,
   auditRows: aud.length + 1,
   before: counts(prod),
@@ -310,6 +330,7 @@ console.log(
       redAdd,
       redRepoint,
       prodOnlyRedirects: prodOnlyRedirects.length,
+      keptEdits: keptEdits.length,
       historyRows: hist.length,
       auditRows: aud.length + 1,
       check,
