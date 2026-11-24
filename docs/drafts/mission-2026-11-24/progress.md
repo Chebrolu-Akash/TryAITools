@@ -2,6 +2,41 @@
 
 The single progress file for the "complete TryAITools" mission. Newest state first.
 
+## Coordination (owner instruction, 2026-11-24)
+This session is the primary coordinator. Only it deploys, writes production D1, pushes GitHub or changes Cloudflare.
+| Session | Task | Limits |
+|---|---|---|
+| Coordinator (this) | pipeline, releases, production verification, this log | — |
+| AI News (`local_cf116729`) | grounded-review indexing batches (~130 tools + 69 regenerations) | preview D1 only, after 00:00 UTC; no deploys/pushes; one-line report per batch |
+| Redesign (`local_557ba305`) | none open | no deploys/pushes; report any unreleased worktree changes |
+
+## Static build pipeline for Workers Builds (2026-11-24, not yet live)
+Done locally and on preview; production settings unchanged (builds still disabled). Details: `docs/static-site.md`
+→ "Automatic builds". Verification:
+- Plain `vite build` with `WORKERS_CI=1` → **refused** (exit 1), `.output` untouched.
+- Plain local `bun run build` → `verify:static` **REFUSED** (entry `index.mjs`, 0 pre-rendered pages): exactly the
+  `0ec08829` output.
+- `WORKERS_CI=1 WORKERS_CI_BRANCH=feature/… bun run build:static` → preview snapshot exported (~17k rows read), 1,627
+  pages, 927 sitemap URLs, ALL CHECKS PASSED, STATIC OUTPUT VERIFIED. Deployed to `admin-stage3`.
+- Preview: 927/927 sitemap URLs 200, self-canonical, no noindex, one H1, unique titles, valid JSON-LD, no ratings, no
+  preview host in `<head>`; `/admin` and `/api/admin` → Access; `/_serverFn` 403; `.env`, unknown, drafts 404;
+  `/tools/` 301; search, robots, query variants, news 200; security headers present.
+- D1 independence: ~950 preview requests added ~1,500 rows (~1.6 per request; dynamic build: thousands per page).
+- Tests 438/438, typecheck at the 218 baseline, changed files lint-clean.
+
+### Production rollout plan (needs owner approval at each marked step)
+1. **[approval]** Push the pipeline commit to `main` (builds disabled → nothing deploys).
+2. **[owner, dashboard]** Builds settings: build `bun run build:static`, deploy `bun run deploy:static`, non-production
+   branch builds off, variable `NODE_VERSION=22`.
+3. **[approval]** Re-enable builds and trigger one build of `main` ("Retry build" on the latest commit). Watch the log:
+   export of `tryaitools-production` → ALL CHECKS PASSED → STATIC OUTPUT VERIFIED → deploy.
+   If the export fails (build token without D1 read), the build stops and nothing deploys: add a build secret
+   `CLOUDFLARE_API_TOKEN` (D1 Read + Workers Scripts Edit, this account only) and retry.
+4. Verify production: version message/commit, sitemap audit `--check` (all URLs 200), D1 rows_read delta ~1 per view,
+   `/admin` Access, `/api/admin` 401.
+5. Rollback: `wrangler versions deploy 09d86f21-da48-403c-b979-11d7d471dc78@100% --name pixel-perfect --yes`, then
+   "Disable builds" again.
+
 ## Production now
 | | |
 |---|---|

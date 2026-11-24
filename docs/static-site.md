@@ -104,6 +104,29 @@ link to a non-public tool or category), the 404 page, the sitemap (no duplicates
 the old files replaced in `.output/public`. On failure nothing changes and nothing is deployed. Each deploy uploads HTML,
 sitemap, index and `build.json` together as one Worker version, so a version never mixes two builds.
 
+## Automatic builds (Cloudflare Workers Builds)
+`pixel-perfect` is connected to GitHub. A plain `bun run build` + `wrangler deploy` ships the **full app as the Worker
+entry, with no pre-rendered pages**: every page is server-rendered from D1 (thousands of rows per view). That happened on
+2026-11-24 (version `0ec08829`) and used most of the day's D1 read quota. So:
+
+| Setting (Workers & Pages → pixel-perfect → Settings → Builds) | Value |
+|---|---|
+| Build command | `bun run build:static` |
+| Deploy command | `bun run deploy:static` |
+| Builds for non-production branches | **off** (a `versions upload` would pair preview HTML with the production binding) |
+| Build variable | `NODE_VERSION=22` (the pre-render needs Node ≥ 22.5) |
+
+* `bun run build:static` (`scripts/static/ci-build.mjs`): read-only `wrangler d1 export --remote` of the target database
+  (in Workers Builds `main` → `tryaitools-production`, any other branch → `tryaitools-preview`; locally
+  `STATIC_TARGET=…` or `--snapshot <file>`), then `build-site.mjs`, then the output check below. The snapshot is deleted.
+* `bun run deploy:static` / `upload:static`: `scripts/static/verify-static-output.mjs` must pass (Worker entry is
+  `gate.mjs`, `run_worker_first` set, `build.json` from a snapshot with ≥ 100 pages, every listed page present, sitemap
+  only on `https://tryaitools.io`), then `wrangler deploy` / `wrangler versions upload`.
+* Fail closed: in Workers Builds (`WORKERS_CI` set) `vite.config.ts` refuses a `vite build` that the static pipeline did
+  not start, so a build command left at `bun run build` fails and deploys nothing. A failed export (e.g. a build token
+  without D1 read access) also stops the build.
+* Tests: `src/test/static-pipeline.test.ts`.
+
 ## Size
 2,250 pages, 62.3 MB of HTML (was ~95 MB); identical computed styles to the previous build (checked element by element).
 Limits: 20,000 files per version, 25 MiB per file.

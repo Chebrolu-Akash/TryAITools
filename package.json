@@ -18,7 +18,11 @@
     "db:preview": "bun scripts/db/preview-d1.mjs",
     "admin:setup": "bun scripts/db/local-admin.mjs setup",
     "admin:dev": "bun scripts/db/local-admin.mjs start",
-    "static:build": "bun scripts/static/build-site.mjs"
+    "static:build": "bun scripts/static/build-site.mjs",
+    "build:static": "bun scripts/static/ci-build.mjs",
+    "verify:static": "node scripts/static/verify-static-output.mjs",
+    "deploy:static": "node scripts/static/verify-static-output.mjs && wrangler deploy",
+    "upload:static": "node scripts/static/verify-static-output.mjs && wrangler versions upload"
   },
   "overrides": {
     "rolldown": "1.2.1"
